@@ -1,0 +1,3203 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CS2 MARKET TERMINAL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;400;500;600;700&family=Exo+2:wght@100;300;400;600;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+<style>
+/* ═══════════════════════════════════════════════════
+   CSS VARIABLES & RESET
+═══════════════════════════════════════════════════ */
+:root {
+  --bg-primary:   #060912;
+  --bg-card:      #0b0f1e;
+  --bg-elevated:  #0f1525;
+  --bg-hover:     #141c30;
+  --border:       rgba(0,212,255,0.08);
+  --border-glow:  rgba(0,212,255,0.22);
+
+  --text-primary:   #c4d4ee;
+  --text-secondary: #7a8fac;
+  --text-dim:       #37506a;
+
+  --green:    #00ff88;
+  --cyan:     #00d4ff;
+  --cyan-dim: #006f8a;
+  --gold:     #f5c542;
+  --orange:   #ff8c00;
+  --red:      #ff3d5a;
+  --purple:   #9d78f7;
+  --blue:     #3b82f6;
+
+  --text-mono: 'Share Tech Mono', monospace;
+  --text-ui:   'Rajdhani', sans-serif;
+  --text-num:  'Exo 2', sans-serif;
+
+  --topbar-h:   44px;
+  --sidebar-w:  188px;
+  --itemlist-w: 232px;
+  --detail-w:   330px;
+  --radius:     4px;
+
+  --scan-green:  #00ff88;
+  --scan-orange: #ff8c00;
+  --scan-red:    #ff3d5a;
+  --scan-dim:    #37506a;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--text-ui);
+  font-size: 13px;
+  overflow: hidden;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-glow); border-radius: 2px; }
+
+/* ═══════════════════════════════════════════════════
+   TOPBAR
+═══════════════════════════════════════════════════ */
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0;
+  height: var(--topbar-h);
+  background: rgba(6,9,18,0.97);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 14px;
+  padding: 0 14px;
+  z-index: 1000;
+  backdrop-filter: blur(10px);
+}
+
+.logo { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+.logo-icon {
+  width: 30px; height: 30px;
+  background: linear-gradient(135deg, var(--cyan), var(--purple));
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; color: #fff;
+  box-shadow: 0 0 12px rgba(0,212,255,0.3);
+}
+.logo-text { font-family: var(--text-num); font-weight: 800; font-size: 13px; letter-spacing: .12em; color: var(--cyan); }
+.logo-sub  { font-family: var(--text-mono); font-size: 8px; color: var(--text-dim); letter-spacing: .22em; margin-top: 1px; }
+
+.topbar-meta { display: flex; gap: 6px; align-items: center; }
+.meta-chip {
+  font-family: var(--text-mono); font-size: 9.5px;
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  color: var(--text-dim);
+  background: var(--bg-card);
+  cursor: default;
+  transition: border-color .2s;
+}
+.meta-chip:hover { border-color: var(--border-glow); color: var(--text-secondary); }
+.meta-chip .val { color: var(--cyan); }
+
+.topbar-right { display: flex; align-items: center; gap: 10px; margin-left: auto; }
+
+.ws-indicator {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--text-mono); font-size: 9.5px; color: var(--green);
+}
+.ws-indicator.disconnected { color: var(--red); }
+.status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--green);
+  box-shadow: 0 0 6px var(--green);
+  animation: pulse-dot 2s infinite;
+}
+.ws-indicator.disconnected .status-dot { background: var(--red); box-shadow: 0 0 6px var(--red); animation: none; }
+@keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+.topbar-time { font-family: var(--text-mono); font-size: 12px; color: var(--text-secondary); letter-spacing: .08em; }
+
+/* ═══════════════════════════════════════════════════
+   APP LAYOUT
+═══════════════════════════════════════════════════ */
+#app {
+  display: flex;
+  height: 100vh;
+  padding-top: var(--topbar-h);
+  overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════════════ */
+#sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--bg-card);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow-y: auto; overflow-x: hidden;
+  padding: 10px 0;
+  z-index: 10;
+}
+
+.nav-section-label {
+  font-family: var(--text-mono); font-size: 8.5px;
+  letter-spacing: .25em; color: var(--text-dim);
+  padding: 8px 14px 4px;
+  text-transform: uppercase;
+}
+
+.nav-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 14px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12.5px; font-weight: 500;
+  transition: background .15s, color .15s;
+  position: relative;
+  user-select: none;
+}
+.nav-item:hover { background: var(--bg-hover); color: var(--text-primary); }
+.nav-item.active {
+  background: linear-gradient(90deg, rgba(0,212,255,0.1), transparent);
+  color: var(--cyan);
+  border-left: 2px solid var(--cyan);
+  padding-left: 12px;
+}
+.nav-icon { font-size: 13px; width: 16px; text-align: center; flex-shrink: 0; }
+.nav-badge {
+  margin-left: auto; font-family: var(--text-mono); font-size: 9px;
+  padding: 1px 5px; border-radius: 2px;
+  background: var(--bg-elevated); color: var(--text-dim);
+}
+.nav-badge.scanning { background: rgba(0,255,136,0.12); color: var(--green); animation: badge-blink 1.4s infinite; }
+@keyframes badge-blink { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+.nav-divider { height: 1px; background: var(--border); margin: 8px 12px; }
+
+.nav-bottom {
+  margin-top: auto;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+}
+.nav-bottom-info {
+  font-family: var(--text-mono); font-size: 9px;
+  color: var(--text-dim); line-height: 1.8;
+}
+
+/* ═══════════════════════════════════════════════════
+   ITEM LIST PANEL
+═══════════════════════════════════════════════════ */
+#item-list-panel {
+  width: var(--itemlist-w);
+  flex-shrink: 0;
+  background: var(--bg-primary);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  transition: width .25s ease, opacity .2s;
+  overflow: hidden;
+}
+#item-list-panel.collapsed { width: 0; opacity: 0; pointer-events: none; }
+
+.item-list-header {
+  padding: 10px 10px 6px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.item-list-title { font-family: var(--text-mono); font-size: 9px; letter-spacing: .2em; color: var(--text-dim); margin-bottom: 7px; }
+
+.search-box {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 8px;
+}
+.search-box input {
+  flex: 1; background: none; border: none; outline: none;
+  font-family: var(--text-mono); font-size: 10.5px; color: var(--text-primary);
+}
+.search-box input::placeholder { color: var(--text-dim); }
+.search-icon { color: var(--text-dim); font-size: 12px; }
+
+.item-filter-tabs { display: flex; gap: 4px; margin-top: 7px; }
+.filter-tab {
+  font-family: var(--text-mono); font-size: 9px;
+  padding: 3px 8px; border-radius: 2px;
+  border: 1px solid var(--border);
+  color: var(--text-dim); cursor: pointer;
+  transition: all .15s;
+}
+.filter-tab.active { border-color: var(--cyan); color: var(--cyan); background: rgba(0,212,255,0.07); }
+.filter-tab:hover:not(.active) { border-color: var(--border-glow); color: var(--text-secondary); }
+
+.item-list-count {
+  font-family: var(--text-mono); font-size: 9px;
+  color: var(--text-dim); padding: 5px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+#item-list-scroll { flex: 1; overflow-y: auto; }
+
+.item-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 7px 10px; cursor: pointer;
+  border-bottom: 1px solid rgba(0,212,255,0.04);
+  transition: background .12s;
+}
+.item-row:hover { background: var(--bg-hover); }
+.item-row.selected { background: rgba(0,212,255,0.07); border-left: 2px solid var(--cyan); padding-left: 8px; }
+.item-row-thumb { font-size: 14px; flex-shrink: 0; width: 20px; text-align: center; }
+.item-row-info { flex: 1; min-width: 0; }
+.item-row-name { font-size: 11px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.item-row-sub  { font-family: var(--text-mono); font-size: 9px; color: var(--text-dim); margin-top: 1px; }
+.item-row-price { font-family: var(--text-mono); font-size: 10px; color: var(--green); flex-shrink: 0; }
+.item-row-price.no-price { color: var(--text-dim); }
+.item-scanned-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+.dot-green { background: var(--green); box-shadow: 0 0 4px var(--green); }
+.dot-dim   { background: var(--text-dim); }
+
+/* ═══════════════════════════════════════════════════
+   MAIN CONTENT
+═══════════════════════════════════════════════════ */
+#main-content {
+  flex: 1; overflow: hidden;
+  display: flex; flex-direction: column;
+  position: relative;
+}
+
+.page { display: none; flex: 1; flex-direction: column; overflow: hidden; height: 100%; }
+.page.active { display: flex; }
+
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.page-title { font-family: var(--text-num); font-weight: 700; font-size: 16px; letter-spacing: .04em; }
+
+/* ═══════════════════════════════════════════════════
+   BUTTONS
+═══════════════════════════════════════════════════ */
+.btn {
+  font-family: var(--text-mono); font-size: 10.5px; letter-spacing: .06em;
+  padding: 6px 14px; border-radius: var(--radius); cursor: pointer;
+  border: 1px solid; transition: all .15s;
+}
+.btn-primary { background: rgba(0,212,255,0.12); border-color: var(--cyan); color: var(--cyan); }
+.btn-primary:hover { background: rgba(0,212,255,0.22); box-shadow: 0 0 10px rgba(0,212,255,0.2); }
+.btn-outline { background: transparent; border-color: var(--border-glow); color: var(--text-secondary); }
+.btn-outline:hover { border-color: var(--cyan); color: var(--cyan); }
+.btn-ghost { background: transparent; border-color: var(--border); color: var(--text-dim); }
+.btn-ghost:hover { border-color: var(--border-glow); color: var(--text-secondary); }
+.btn-danger { background: rgba(255,61,90,0.12); border-color: var(--red); color: var(--red); }
+.btn-danger:hover { background: rgba(255,61,90,0.22); }
+.btn-success { background: rgba(0,255,136,0.1); border-color: var(--green); color: var(--green); }
+.btn-success:hover { background: rgba(0,255,136,0.2); }
+
+/* ═══════════════════════════════════════════════════
+   PANELS
+═══════════════════════════════════════════════════ */
+.panel {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-title { font-family: var(--text-mono); font-size: 9.5px; letter-spacing: .14em; color: var(--text-secondary); text-transform: uppercase; }
+.panel-body { padding: 12px 14px; }
+
+/* ═══════════════════════════════════════════════════
+   KPI CARDS
+═══════════════════════════════════════════════════ */
+.stats-row { display: flex; gap: 10px; padding: 12px 14px; flex-shrink: 0; }
+.kpi-card {
+  flex: 1; background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  cursor: default;
+  transition: border-color .2s;
+}
+.kpi-card:hover { border-color: var(--border-glow); }
+.kpi-label { font-family: var(--text-mono); font-size: 8.5px; letter-spacing: .16em; color: var(--text-dim); text-transform: uppercase; margin-bottom: 6px; }
+.kpi-value { font-family: var(--text-num); font-weight: 700; font-size: 20px; letter-spacing: .02em; }
+.kpi-value.green  { color: var(--green); }
+.kpi-value.gold   { color: var(--gold); }
+.kpi-value.red    { color: var(--red); }
+.kpi-value.cyan   { color: var(--cyan); }
+.kpi-sub { font-family: var(--text-mono); font-size: 9px; color: var(--text-dim); margin-top: 3px; }
+
+/* ═══════════════════════════════════════════════════
+   OVERVIEW GRID
+═══════════════════════════════════════════════════ */
+.overview-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; padding: 0 14px 14px;
+  flex: 1; overflow-y: auto;
+}
+.overview-grid-full { grid-column: 1 / -1; }
+
+/* Cat bars */
+.cat-bar-row { margin-bottom: 10px; }
+.cat-bar-header { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.cat-bar-name  { font-family: var(--text-mono); font-size: 10px; color: var(--text-secondary); }
+.cat-bar-count { font-family: var(--text-mono); font-size: 10px; color: var(--cyan); }
+.cat-bar-track { height: 4px; background: var(--bg-elevated); border-radius: 2px; }
+.cat-bar-fill  { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--cyan), var(--purple)); transition: width .6s ease; }
+
+/* Tags cloud */
+.tags-cloud { display: flex; flex-wrap: wrap; gap: 5px; }
+.tag-chip {
+  font-family: var(--text-mono); font-size: 9px;
+  padding: 3px 8px; border-radius: 2px;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+.tag-chip.foil    { border-color: rgba(0,212,255,0.25); color: var(--cyan); }
+.tag-chip.glitter { border-color: rgba(157,120,247,0.25); color: var(--purple); }
+.tag-chip.gold    { border-color: rgba(245,197,66,0.25); color: var(--gold); }
+.tag-chip.holo    { border-color: rgba(0,255,136,0.25); color: var(--green); }
+.tag-count { color: var(--text-dim); margin-left: 3px; }
+
+/* Top items list */
+.top-item-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 14px; cursor: pointer;
+  border-bottom: 1px solid rgba(0,212,255,0.04);
+  transition: background .12s;
+}
+.top-item-row:hover { background: var(--bg-hover); }
+.top-item-rank { font-family: var(--text-mono); font-size: 9.5px; color: var(--text-dim); width: 24px; flex-shrink: 0; }
+.top-item-name { flex: 1; font-size: 11.5px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-item-price { font-family: var(--text-mono); font-size: 11px; color: var(--gold); flex-shrink: 0; }
+
+/* ═══════════════════════════════════════════════════
+   SCANNER PAGE
+═══════════════════════════════════════════════════ */
+.scanner-topbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* Mode selector */
+.scan-mode-selector {
+  display: flex; gap: 4px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px;
+}
+.scan-mode-tab {
+  font-family: var(--text-mono); font-size: 9.5px;
+  padding: 5px 11px; border-radius: 3px; cursor: pointer;
+  color: var(--text-dim); transition: all .15s;
+  white-space: nowrap;
+}
+.scan-mode-tab:hover { color: var(--text-secondary); }
+.scan-mode-tab.active {
+  background: rgba(0,212,255,0.12);
+  color: var(--cyan);
+  box-shadow: 0 0 8px rgba(0,212,255,0.15);
+}
+
+.scanner-progress-bar-wrap {
+  height: 2px; background: var(--bg-elevated);
+  flex-shrink: 0;
+}
+.scanner-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--purple));
+  transition: width .4s ease;
+  box-shadow: 0 0 8px var(--cyan);
+}
+
+.scanner-stats-row {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.scanner-stat {
+  flex: 1; padding: 8px 14px;
+  border-right: 1px solid var(--border);
+  text-align: center;
+}
+.scanner-stat:last-child { border-right: none; }
+.scanner-stat-num   { font-family: var(--text-num); font-weight: 700; font-size: 20px; }
+.scanner-stat-label { font-family: var(--text-mono); font-size: 8.5px; color: var(--text-dim); margin-top: 2px; letter-spacing: .1em; }
+
+/* Mode config panels */
+.scanner-mode-configs { flex-shrink: 0; }
+.mode-config {
+  display: none;
+  padding: 10px 14px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.mode-config.active { display: flex; }
+
+.cfg-group { display: flex; flex-direction: column; gap: 4px; }
+.cfg-label { font-family: var(--text-mono); font-size: 8.5px; color: var(--text-dim); letter-spacing: .12em; text-transform: uppercase; }
+.cfg-input {
+  font-family: var(--text-mono); font-size: 11px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-primary);
+  padding: 5px 9px; outline: none;
+  transition: border-color .15s;
+}
+.cfg-input:focus { border-color: var(--border-glow); }
+.cfg-select {
+  font-family: var(--text-mono); font-size: 11px;
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-primary);
+  padding: 5px 9px; outline: none; cursor: pointer;
+}
+
+/* Data toggles row */
+.data-toggles-row {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+  flex-shrink: 0;
+}
+.data-toggles-row.hidden { display: none; }
+.data-toggle-label { font-family: var(--text-mono); font-size: 8.5px; color: var(--text-dim); letter-spacing: .15em; margin-right: 4px; }
+
+.toggle-chip {
+  display: flex; align-items: center; gap: 5px;
+  font-family: var(--text-mono); font-size: 9.5px;
+  padding: 3px 10px; border-radius: 2px;
+  border: 1px solid var(--border);
+  color: var(--text-dim); cursor: pointer;
+  transition: all .15s; user-select: none;
+}
+.toggle-chip.on { border-color: var(--cyan); color: var(--cyan); background: rgba(0,212,255,0.07); }
+.toggle-chip.on::before { content: '◉'; font-size: 8px; }
+.toggle-chip:not(.on)::before { content: '○'; font-size: 8px; }
+.toggle-chip:hover:not(.on) { border-color: var(--border-glow); color: var(--text-secondary); }
+
+/* Category fetch panel */
+.category-fetch-panel {
+  display: none;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+  flex-wrap: wrap; gap: 6px; align-items: center;
+}
+.category-fetch-panel.active { display: flex; }
+.cat-chip {
+  font-family: var(--text-mono); font-size: 9.5px;
+  padding: 4px 11px; border-radius: 2px;
+  border: 1px solid var(--border);
+  color: var(--text-dim); cursor: pointer;
+  transition: all .15s; user-select: none;
+}
+.cat-chip:hover { border-color: var(--border-glow); color: var(--text-secondary); }
+.cat-chip.selected { border-color: var(--gold); color: var(--gold); background: rgba(245,197,66,0.07); }
+
+.scanner-body {
+  display: grid; grid-template-columns: 260px 1fr;
+  flex: 1; overflow: hidden;
+}
+
+.scanner-queue-panel,
+.scanner-log-panel {
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--border);
+  overflow: hidden;
+}
+.scanner-log-panel { border-right: none; }
+
+.scanner-panel-header {
+  font-family: var(--text-mono); font-size: 9px;
+  letter-spacing: .14em; color: var(--text-dim);
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+}
+
+.queue-list { flex: 1; overflow-y: auto; }
+.queue-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 10px; font-size: 10.5px;
+  border-bottom: 1px solid rgba(0,212,255,0.04);
+  font-family: var(--text-mono);
+  transition: background .12s;
+}
+.queue-item:hover { background: var(--bg-hover); }
+.queue-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.queue-dot.done    { background: var(--scan-green); }
+.queue-dot.active  { background: var(--scan-orange); animation: pulse-dot 1s infinite; }
+.queue-dot.waiting { background: var(--scan-dim); }
+.queue-dot.error   { background: var(--scan-red); }
+.queue-name { flex: 1; color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 10px; }
+.queue-status { font-size: 9px; color: var(--text-dim); flex-shrink: 0; }
+
+.log-body {
+  flex: 1; overflow-y: auto; padding: 6px 0;
+  font-family: var(--text-mono); font-size: 10.5px;
+}
+.log-line { display: flex; gap: 8px; padding: 2px 12px; line-height: 1.6; }
+.log-line:hover { background: rgba(255,255,255,0.02); }
+.log-time  { color: var(--text-dim); flex-shrink: 0; font-size: 9.5px; }
+.log-ok    { color: var(--green); }
+.log-err   { color: var(--red); }
+.log-info  { color: var(--cyan); }
+.log-warn  { color: var(--orange); }
+.log-dim   { color: var(--text-dim); }
+
+.log-footer {
+  padding: 6px 12px; border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex; justify-content: space-between; align-items: center;
+}
+
+.scan-ticker {
+  display: flex; align-items: center; gap: 6px;
+  font-family: var(--text-mono); font-size: 10.5px; color: var(--orange);
+  padding: 3px 10px;
+  border: 1px solid rgba(255,140,0,0.25);
+  border-radius: 3px;
+  background: rgba(255,140,0,0.06);
+}
+.scan-ticker-icon { animation: spin 1.2s linear infinite; display: inline-block; }
+@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+
+/* ═══════════════════════════════════════════════════
+   DATABASE PAGE
+═══════════════════════════════════════════════════ */
+.db-topbar {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0; flex-wrap: wrap;
+}
+.db-search-big {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 10px; flex: 1; min-width: 180px;
+}
+.db-search-big input {
+  flex: 1; background: none; border: none; outline: none;
+  font-family: var(--text-mono); font-size: 11px; color: var(--text-primary);
+}
+.select-box {
+  font-family: var(--text-mono); font-size: 10.5px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-secondary);
+  padding: 5px 9px; outline: none; cursor: pointer;
+}
+.select-box:focus { border-color: var(--border-glow); }
+
+.db-table-wrap { flex: 1; overflow: auto; }
+.db-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12px;
+}
+.db-table thead { position: sticky; top: 0; z-index: 2; background: var(--bg-elevated); }
+.db-table th {
+  font-family: var(--text-mono); font-size: 8.5px; letter-spacing: .12em;
+  color: var(--text-dim); text-transform: uppercase;
+  padding: 8px 10px; text-align: left;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer; user-select: none;
+  white-space: nowrap;
+}
+.db-table th:hover { color: var(--text-secondary); }
+.db-table td {
+  padding: 7px 10px; border-bottom: 1px solid rgba(0,212,255,0.04);
+  color: var(--text-primary); vertical-align: middle;
+}
+.db-table tr:hover td { background: var(--bg-hover); }
+.db-table tr.row-selected td { background: rgba(0,212,255,0.06); }
+.td-price  { font-family: var(--text-mono); color: var(--green); }
+.td-id     { font-family: var(--text-mono); font-size: 9.5px; color: var(--text-dim); }
+.td-date   { font-family: var(--text-mono); font-size: 10px; color: var(--text-dim); }
+.td-type   { padding: 4px 10px; }
+.type-badge {
+  font-family: var(--text-mono); font-size: 8.5px;
+  padding: 2px 7px; border-radius: 2px; letter-spacing: .1em;
+}
+.type-badge.sticker { background: rgba(0,212,255,0.1); color: var(--cyan); border: 1px solid rgba(0,212,255,0.2); }
+.type-badge.capsule { background: rgba(245,197,66,0.1); color: var(--gold); border: 1px solid rgba(245,197,66,0.2); }
+.type-badge.weapon  { background: rgba(255,61,90,0.08); color: var(--red); border: 1px solid rgba(255,61,90,0.2); }
+.type-badge.case    { background: rgba(157,120,247,0.1); color: var(--purple); border: 1px solid rgba(157,120,247,0.2); }
+
+.action-btn {
+  font-family: var(--text-mono); font-size: 10.5px;
+  padding: 3px 8px; border-radius: 2px; cursor: pointer;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-dim); transition: all .12s;
+}
+.action-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.action-btn.del:hover { border-color: var(--red); color: var(--red); }
+.action-btn.sim:hover { border-color: var(--purple); color: var(--purple); }
+
+.db-footer {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 14px; border-top: 1px solid var(--border);
+  font-family: var(--text-mono); font-size: 9.5px; color: var(--text-dim);
+  flex-shrink: 0;
+}
+.count-highlight { color: var(--cyan); }
+
+/* ═══════════════════════════════════════════════════
+   SIMULATION PAGE (⚙)
+═══════════════════════════════════════════════════ */
+.sim-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  flex: 1; overflow: hidden;
+}
+
+.sim-sidebar {
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+.sim-item-picker {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.sim-section-title {
+  font-family: var(--text-mono); font-size: 8.5px;
+  letter-spacing: .2em; color: var(--text-dim);
+  text-transform: uppercase; margin-bottom: 7px;
+}
+
+.sim-selected-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius); cursor: pointer;
+  transition: border-color .15s;
+  margin-bottom: 6px;
+}
+.sim-selected-item:hover { border-color: var(--cyan); }
+.sim-selected-icon { font-size: 18px; flex-shrink: 0; }
+.sim-selected-name { flex: 1; font-size: 11px; color: var(--text-primary); line-height: 1.3; }
+.sim-selected-sub  { font-family: var(--text-mono); font-size: 9px; color: var(--text-dim); margin-top: 2px; }
+.sim-select-hint   { font-family: var(--text-mono); font-size: 9px; color: var(--text-dim); text-align: center; }
+
+/* Toggle list */
+.sim-toggles-section {
+  flex: 1; overflow-y: auto; padding: 10px 12px;
+}
+.sim-toggle-group { margin-bottom: 14px; }
+.sim-toggle-group-title {
+  font-family: var(--text-mono); font-size: 8px;
+  letter-spacing: .2em; color: var(--cyan);
+  text-transform: uppercase; margin-bottom: 6px;
+  padding-bottom: 4px; border-bottom: 1px solid rgba(0,212,255,0.1);
+}
+.sim-toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(0,212,255,0.04);
+}
+.sim-toggle-name { font-family: var(--text-mono); font-size: 10.5px; color: var(--text-secondary); }
+.sim-toggle-desc { font-size: 9px; color: var(--text-dim); margin-top: 1px; }
+
+/* Toggle switch */
+.toggle-switch {
+  position: relative; width: 32px; height: 16px; cursor: pointer;
+  flex-shrink: 0;
+}
+.toggle-switch input { display: none; }
+.toggle-track {
+  width: 100%; height: 100%;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px; transition: all .2s;
+}
+.toggle-switch input:checked + .toggle-track {
+  background: rgba(0,212,255,0.15);
+  border-color: var(--cyan);
+}
+.toggle-knob {
+  position: absolute; top: 2px; left: 2px;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--text-dim); transition: all .2s;
+}
+.toggle-switch input:checked ~ .toggle-knob {
+  left: 18px; background: var(--cyan);
+  box-shadow: 0 0 6px var(--cyan);
+}
+
+/* Sim main area */
+.sim-main {
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+.sim-run-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0; flex-wrap: wrap;
+}
+
+.sim-console {
+  flex: 1; overflow: hidden;
+  display: flex; flex-direction: column;
+}
+.sim-console-header {
+  font-family: var(--text-mono); font-size: 8.5px;
+  letter-spacing: .18em; color: var(--text-dim);
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: center;
+  flex-shrink: 0; background: var(--bg-elevated);
+}
+.sim-console-body {
+  flex: 1; overflow-y: auto; padding: 8px 0;
+  font-family: var(--text-mono); font-size: 10.5px;
+}
+.sim-log-line { display: flex; gap: 8px; padding: 3px 12px; line-height: 1.65; }
+.sim-log-line:hover { background: rgba(255,255,255,0.02); }
+.sim-log-key   { color: var(--text-dim); min-width: 130px; flex-shrink: 0; }
+.sim-log-val   { color: var(--cyan); }
+.sim-log-val.v-green  { color: var(--green); }
+.sim-log-val.v-gold   { color: var(--gold); }
+.sim-log-val.v-red    { color: var(--red); }
+.sim-log-val.v-purple { color: var(--purple); }
+.sim-log-sep  { padding: 4px 12px; font-size: 9px; color: var(--border-glow); letter-spacing: .3em; }
+
+.sim-result-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px; padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg-elevated);
+}
+.sim-result-card {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 8px 10px;
+}
+.sim-result-label { font-family: var(--text-mono); font-size: 8.5px; color: var(--text-dim); margin-bottom: 4px; letter-spacing: .1em; }
+.sim-result-val   { font-family: var(--text-num); font-weight: 700; font-size: 16px; }
+
+/* ═══════════════════════════════════════════════════
+   HISTORY PAGE (Steam-style dual chart)
+═══════════════════════════════════════════════════ */
+.history-topbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.range-tabs { display: flex; gap: 3px; }
+.range-tab {
+  font-family: var(--text-mono); font-size: 9.5px;
+  padding: 4px 10px; border-radius: 2px; cursor: pointer;
+  border: 1px solid var(--border); color: var(--text-dim);
+  transition: all .15s;
+}
+.range-tab.active  { border-color: var(--cyan); color: var(--cyan); background: rgba(0,212,255,0.08); }
+.range-tab:hover:not(.active) { border-color: var(--border-glow); color: var(--text-secondary); }
+
+.history-stats-row {
+  display: flex; gap: 0; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.history-stat {
+  flex: 1; padding: 7px 16px; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+}
+.history-stat:last-child { border-right: none; }
+.history-stat-label { font-family: var(--text-mono); font-size: 8.5px; color: var(--text-dim); margin-bottom: 3px; }
+.history-stat-val   { font-family: var(--text-num); font-weight: 700; font-size: 16px; }
+
+/* Steam-style dual chart */
+.history-chart-area {
+  flex: 1; display: flex; flex-direction: column;
+  padding: 14px; gap: 10px; overflow-y: auto;
+}
+
+.history-chart-panel {
+  background: var(--bg-card); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+}
+.history-chart-panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px; border-bottom: 1px solid var(--border);
+}
+.history-chart-panel-title { font-family: var(--text-mono); font-size: 9.5px; color: var(--text-secondary); letter-spacing: .12em; }
+.history-price-chart-wrap  { position: relative; height: 220px; padding: 10px 14px 0; }
+.history-volume-chart-wrap { position: relative; height: 90px; padding: 0 14px 10px; }
+
+.history-tooltip-legend {
+  display: flex; gap: 14px; padding: 6px 14px;
+  border-top: 1px solid var(--border);
+}
+.ht-legend-item { display: flex; align-items: center; gap: 5px; font-family: var(--text-mono); font-size: 9.5px; color: var(--text-dim); }
+.ht-legend-dot  { width: 8px; height: 8px; border-radius: 50%; }
+.ht-legend-val  { color: var(--text-secondary); }
+
+.glow-overlay {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 40px;
+  background: linear-gradient(to top, var(--bg-card), transparent);
+  pointer-events: none;
+}
+
+/* ═══════════════════════════════════════════════════
+   SETTINGS PAGE
+═══════════════════════════════════════════════════ */
+.settings-scroll { flex: 1; overflow-y: auto; padding: 14px; }
+.settings-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; max-width: 900px;
+}
+
+.form-group { margin-bottom: 11px; }
+.form-label {
+  display: block;
+  font-family: var(--text-mono); font-size: 9px;
+  letter-spacing: .12em; color: var(--text-dim);
+  margin-bottom: 5px; text-transform: uppercase;
+}
+.form-input {
+  width: 100%; font-family: var(--text-mono); font-size: 11.5px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-primary);
+  padding: 7px 10px; outline: none; transition: border-color .15s;
+}
+.form-input:focus { border-color: var(--border-glow); }
+.form-hint { font-family: var(--text-mono); font-size: 9px; color: var(--text-dim); margin-top: 4px; }
+
+.form-select {
+  width: 100%; font-family: var(--text-mono); font-size: 11.5px;
+  background: var(--bg-elevated); border: 1px solid var(--border);
+  border-radius: var(--radius); color: var(--text-primary);
+  padding: 7px 10px; outline: none; cursor: pointer;
+}
+.form-select:focus { border-color: var(--border-glow); }
+
+.settings-full { grid-column: 1 / -1; }
+
+.file-list-item {
+  display: flex; align-items: center; gap: 7px;
+  padding: 6px 14px; border-bottom: 1px solid rgba(0,212,255,0.04);
+  font-size: 11px; color: var(--text-secondary);
+}
+.file-icon { font-size: 13px; }
+.file-desc { color: var(--text-dim); font-size: 10.5px; }
+
+/* ═══════════════════════════════════════════════════
+   DETAIL PANEL
+═══════════════════════════════════════════════════ */
+#detail-panel {
+  width: 0; flex-shrink: 0;
+  background: var(--bg-card);
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+  transition: width .25s ease;
+  display: flex; flex-direction: column;
+}
+#detail-panel.open { width: var(--detail-w); }
+
+.detail-header {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.detail-item-img {
+  width: 44px; height: 44px; flex-shrink: 0;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+.detail-item-meta { flex: 1; min-width: 0; }
+.detail-item-name {
+  font-size: 12px; font-weight: 600; color: var(--text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  line-height: 1.3;
+}
+.detail-item-hash {
+  font-family: var(--text-mono); font-size: 8.5px; color: var(--text-dim);
+  margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.detail-item-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 4px; }
+.detail-tag {
+  font-family: var(--text-mono); font-size: 8px;
+  padding: 1px 6px; border-radius: 2px;
+  border: 1px solid var(--border); color: var(--text-dim);
+}
+.detail-tag.foil    { border-color: rgba(0,212,255,0.3); color: var(--cyan); }
+.detail-tag.holo    { border-color: rgba(0,255,136,0.3); color: var(--green); }
+.detail-tag.gold    { border-color: rgba(245,197,66,0.3); color: var(--gold); }
+.detail-tag.capsule { border-color: rgba(245,197,66,0.3); color: var(--gold); }
+.detail-close {
+  cursor: pointer; color: var(--text-dim); font-size: 14px;
+  padding: 2px 4px; transition: color .15s;
+  flex-shrink: 0;
+}
+.detail-close:hover { color: var(--red); }
+
+/* Detail tabs */
+.detail-tabs {
+  display: flex; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.detail-tab {
+  flex: 1; font-family: var(--text-mono); font-size: 9px;
+  padding: 7px 4px; text-align: center; cursor: pointer;
+  color: var(--text-dim); letter-spacing: .1em;
+  border-bottom: 2px solid transparent;
+  transition: all .15s;
+}
+.detail-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+.detail-tab:hover:not(.active) { color: var(--text-secondary); }
+
+#detail-body { flex: 1; overflow-y: auto; }
+
+/* Tab content panels */
+.detail-tab-panel { display: none; }
+.detail-tab-panel.active { display: block; }
+
+/* Price grid */
+.detail-price-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1px; background: var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.price-cell {
+  background: var(--bg-card); padding: 9px 10px;
+}
+.price-cell.full { grid-column: 1 / -1; }
+.price-cell-label { font-family: var(--text-mono); font-size: 8px; color: var(--text-dim); letter-spacing: .1em; margin-bottom: 3px; text-transform: uppercase; }
+.price-cell-value { font-family: var(--text-num); font-weight: 700; font-size: 14px; }
+.price-cell-value.green  { color: var(--green); }
+.price-cell-value.cyan   { color: var(--cyan); }
+.price-cell-value.gold   { color: var(--gold); }
+.price-cell-value.red    { color: var(--red); }
+.price-cell-value.orange { color: var(--orange); }
+.price-cell-sub { font-family: var(--text-mono); font-size: 8.5px; color: var(--text-dim); margin-top: 2px; }
+
+.scan-info-row {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  padding: 7px 10px; font-family: var(--text-mono); font-size: 9px;
+  color: var(--text-dim); border-bottom: 1px solid var(--border);
+}
+.val { color: var(--text-secondary); }
+.source-tag {
+  margin-left: auto;
+  font-size: 8.5px; padding: 1px 6px;
+  border: 1px solid var(--border); border-radius: 2px;
+  color: var(--text-dim);
+}
+
+/* Detail chart */
+.detail-chart-section { padding: 10px 10px 6px; border-bottom: 1px solid var(--border); }
+.detail-section-title {
+  font-family: var(--text-mono); font-size: 8.5px; letter-spacing: .16em;
+  color: var(--text-dim); text-transform: uppercase; margin-bottom: 7px;
+}
+.chart-range-tabs { display: flex; gap: 3px; margin-bottom: 8px; }
+
+.chart-container-3d {
+  position: relative; height: 110px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius); overflow: hidden;
+  border: 1px solid var(--border);
+}
+.chart-tooltip-info {
+  display: flex; gap: 10px; margin-top: 6px;
+  font-family: var(--text-mono); font-size: 9px; color: var(--text-dim);
+}
+
+/* Order book */
+.orderbook-wrap {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+  margin-top: 6px;
+}
+.orderbook-side { background: var(--bg-elevated); border-radius: var(--radius); overflow: hidden; }
+.orderbook-side-title {
+  font-family: var(--text-mono); font-size: 8.5px; letter-spacing: .1em;
+  padding: 5px 8px; text-align: center;
+}
+.orderbook-side-title.buy  { color: var(--green); border-bottom: 1px solid rgba(0,255,136,0.15); }
+.orderbook-side-title.sell { color: var(--red); border-bottom: 1px solid rgba(255,61,90,0.15); }
+
+.orderbook-row {
+  position: relative; display: flex; align-items: center;
+  justify-content: space-between;
+  padding: 3px 8px; font-family: var(--text-mono); font-size: 9px;
+}
+.orderbook-fill {
+  position: absolute; top: 0; left: 0; height: 100%;
+  border-radius: 1px;
+  pointer-events: none;
+}
+.orderbook-row.buy .orderbook-fill  { background: rgba(0,255,136,0.07); }
+.orderbook-row.sell .orderbook-fill { background: rgba(255,61,90,0.07); }
+.ob-price { color: var(--text-primary); position: relative; z-index: 1; }
+.ob-qty   { color: var(--text-dim); position: relative; z-index: 1; }
+
+/* Spread bar */
+.spread-bar-wrap { height: 2px; background: var(--bg-elevated); border-radius: 1px; margin-top: 4px; }
+.spread-bar-fill { height: 100%; border-radius: 1px; background: linear-gradient(90deg, var(--green), var(--red)); }
+
+/* Simulators tab in detail panel */
+.detail-sim-panel { padding: 10px; }
+.detail-sim-title {
+  font-family: var(--text-mono); font-size: 8px;
+  letter-spacing: .2em; color: var(--cyan);
+  text-transform: uppercase; margin-bottom: 8px;
+  padding-bottom: 4px; border-bottom: 1px solid rgba(0,212,255,0.1);
+}
+.detail-sim-toggle {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 4px; border-bottom: 1px solid rgba(0,212,255,0.04);
+}
+.detail-sim-toggle-name { font-family: var(--text-mono); font-size: 10px; color: var(--text-secondary); }
+.detail-sim-run-btn { margin-top: 12px; width: 100%; padding: 8px; text-align: center; }
+
+/* ═══════════════════════════════════════════════════
+   TOAST
+═══════════════════════════════════════════════════ */
+#toast-container {
+  position: fixed; bottom: 18px; right: 18px;
+  display: flex; flex-direction: column; gap: 7px;
+  z-index: 9999;
+}
+.toast {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 14px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--text-mono); font-size: 11px;
+  color: var(--text-secondary);
+  animation: toast-in .2s ease;
+  max-width: 340px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+}
+@keyframes toast-in { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* ═══════════════════════════════════════════════════
+   TOOLTIPS
+═══════════════════════════════════════════════════ */
+[data-tooltip] { position: relative; }
+[data-tooltip]:hover::after {
+  content: attr(data-tooltip);
+  position: absolute; bottom: calc(100% + 6px); left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--text-mono); font-size: 9.5px;
+  padding: 5px 9px; white-space: nowrap;
+  background: var(--bg-elevated); color: var(--text-primary);
+  border: 1px solid var(--border-glow); border-radius: 3px;
+  pointer-events: none; z-index: 999;
+  box-shadow: 0 0 12px rgba(0,212,255,0.1);
+}
+
+/* ═══════════════════════════════════════════════════
+   MISC UTILITIES
+═══════════════════════════════════════════════════ */
+.val { color: var(--text-secondary); }
+.flex-center { display: flex; align-items: center; justify-content: center; }
+.gap-6 { gap: 6px; }
+.ml-auto { margin-left: auto; }
+</style>
+
+</head>
+<body>
+<!-- ═══ TOPBAR ═══ -->
+<div id="topbar">
+  <div class="logo">
+    <div class="logo-icon">⚡</div>
+    <div>
+      <div class="logo-text">CS2 MARKET</div>
+      <div class="logo-sub">TERMINAL PRO</div>
+    </div>
+  </div>
+ 
+  <div class="topbar-meta">
+    <div class="meta-chip" data-tooltip="Версия схемы данных">v<span class="val" id="meta_version">2.4.1</span></div>
+    <div class="meta-chip" data-tooltip="App ID CS2">APP:<span class="val" id="meta_appid">730</span></div>
+    <div class="meta-chip" data-tooltip="Валюта">
+      <span id="meta_currency_0">RUB</span>/<span id="meta_currency_1">USD</span>
+    </div>
+    <div class="meta-chip" data-tooltip="Последнее обновление базы">UPD: <span class="val" id="meta_lastUpdated">—</span></div>
+  </div>
+ 
+  <div class="topbar-right">
+    <div class="ws-indicator" id="ws-indicator">
+      <div class="status-dot"></div>
+      <span id="ws-status-text">WS</span>
+    </div>
+    <span class="topbar-time" id="live-clock">--:--:--</span>
+  </div>
+</div>
+ 
+<!-- ═══ APP BODY ═══ -->
+<div id="app">
+ 
+  <!-- ─── SIDEBAR ─── -->
+  <nav id="sidebar">
+    <div class="nav-section-label">Навигация</div>
+ 
+    <div class="nav-item active" id="nav-overview" data-page="overview" onclick="Navigation.go('overview',this)">
+      <div class="nav-icon">⬡</div><span>Обзор</span>
+    </div>
+    <div class="nav-item" id="nav-scanner" data-page="scanner" onclick="Navigation.go('scanner',this)">
+      <div class="nav-icon">◎</div><span>Сканер</span>
+      <span class="nav-badge scanning" id="scanner-nav-badge">0%</span>
+    </div>
+    <div class="nav-item" id="nav-database" data-page="database" onclick="Navigation.go('database',this)">
+      <div class="nav-icon">⊞</div><span>База данных</span>
+    </div>
+    <div class="nav-item" id="nav-history" data-page="history" onclick="Navigation.go('history',this)">
+      <div class="nav-icon">⌘</div><span>История цен</span>
+    </div>
+    <div class="nav-divider"></div>
+    <div class="nav-item" id="nav-simulation" data-page="simulation" onclick="Navigation.go('simulation',this)">
+      <div class="nav-icon">⚙</div><span>Симуляция</span>
+    </div>
+    <div class="nav-item" id="nav-settings" data-page="settings" onclick="Navigation.go('settings',this)">
+      <div class="nav-icon">◧</div><span>Настройки</span>
+    </div>
+ 
+    <div class="nav-bottom">
+      <div class="nav-bottom-info">
+        CS2 · RUB<br>appid: 730<br>
+        <span style="font-size:9px;opacity:.5;">Steam Market Tracker</span>
+      </div>
+    </div>
+  </nav>
+ 
+  <!-- ─── ITEM LIST PANEL ─── -->
+  <div id="item-list-panel" class="collapsed">
+    <div class="item-list-header">
+      <div class="item-list-title">── ПРЕДМЕТЫ</div>
+      <div class="search-box">
+        <span class="search-icon">⌕</span>
+        <input type="text" id="item-search" placeholder="Поиск..." oninput="ItemList.filter(this.value)">
+      </div>
+      <div class="item-filter-tabs" style="margin-top:7px;">
+        <div class="filter-tab active" id="filter-tab-all" onclick="ItemList.setFilter('all',this)">Все</div>
+        <div class="filter-tab" id="filter-tab-sticker" onclick="ItemList.setFilter('sticker',this)">Стикеры</div>
+        <div class="filter-tab" id="filter-tab-capsule" onclick="ItemList.setFilter('capsule',this)">Капсулы</div>
+        <div class="filter-tab" id="filter-tab-weapon" onclick="ItemList.setFilter('weapon',this)">Оружие</div>
+        <div class="filter-tab" id="filter-tab-case" onclick="ItemList.setFilter('case',this)">Кейсы</div>
+      </div>
+    </div>
+    <div class="item-list-count">Показано: <span id="list-count">—</span></div>
+    <div id="item-list-scroll"></div>
+  </div>
+ 
+  <!-- ─── MAIN CONTENT ─── -->
+  <div id="main-content">
+ 
+    <!-- ══ OVERVIEW ══ -->
+    <div class="page active" id="page-overview">
+      <div class="page-header">
+        <div class="page-title">Обзор портфеля</div>
+        <button class="btn btn-outline" id="btn-overview-refresh" onclick="App.refresh()">↻ Обновить</button>
+      </div>
+ 
+      <div class="stats-row">
+        <div class="kpi-card" data-tooltip="Всего предметов в базе">
+          <div class="kpi-label">Предметов в базе</div>
+          <div class="kpi-value" id="kpi-total">—</div>
+          <div class="kpi-sub">сканировано: <span id="kpi-scanned">—</span></div>
+        </div>
+        <div class="kpi-card" data-tooltip="Средняя цена по базе">
+          <div class="kpi-label">Средняя цена</div>
+          <div class="kpi-value green" id="kpi-avg">— ₽</div>
+          <div class="kpi-sub">по базе предметов</div>
+        </div>
+        <div class="kpi-card" data-tooltip="Суммарная стоимость всех предметов">
+          <div class="kpi-label">Суммарная стоимость</div>
+          <div class="kpi-value gold" id="kpi-value">— ₽</div>
+          <div class="kpi-sub">всех предметов в базе</div>
+        </div>
+        <div class="kpi-card" data-tooltip="Объём продаж за 24 часа">
+          <div class="kpi-label">Объём 24ч</div>
+          <div class="kpi-value cyan" id="kpi-volume">—</div>
+          <div class="kpi-sub">транзакций за сутки</div>
+        </div>
+      </div>
+ 
+      <div class="overview-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <div class="panel-title">Топ по стоимости</div>
+            <span style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim)">последние цены</span>
+          </div>
+          <div class="panel-body" style="padding:6px 0;">
+            <div id="top-items-list"></div>
+          </div>
+        </div>
+ 
+        <div class="panel">
+          <div class="panel-header"><div class="panel-title">Категории</div></div>
+          <div class="panel-body">
+            <div class="cat-bar-row">
+              <div class="cat-bar-header">
+                <span class="cat-bar-name">Sticker</span>
+                <span class="cat-bar-count" id="cat-sticker-count">9 657</span>
+              </div>
+              <div class="cat-bar-track"><div class="cat-bar-fill" id="cat-sticker-bar" style="width:89%"></div></div>
+            </div>
+            <div class="cat-bar-row">
+              <div class="cat-bar-header">
+                <span class="cat-bar-name">Capsule</span>
+                <span class="cat-bar-count" id="cat-capsule-count">198</span>
+              </div>
+              <div class="cat-bar-track">
+                <div class="cat-bar-fill" id="cat-capsule-bar" style="width:2%;background:linear-gradient(90deg,var(--gold),var(--orange))"></div>
+              </div>
+            </div>
+            <div class="cat-bar-row">
+              <div class="cat-bar-header">
+                <span class="cat-bar-name">Weapon</span>
+                <span class="cat-bar-count" id="cat-weapon-count">—</span>
+              </div>
+              <div class="cat-bar-track">
+                <div class="cat-bar-fill" id="cat-weapon-bar" style="width:6%;background:linear-gradient(90deg,var(--red),var(--orange))"></div>
+              </div>
+            </div>
+            <div class="cat-bar-row">
+              <div class="cat-bar-header">
+                <span class="cat-bar-name">Case</span>
+                <span class="cat-bar-count" id="cat-case-count">—</span>
+              </div>
+              <div class="cat-bar-track">
+                <div class="cat-bar-fill" id="cat-case-bar" style="width:3%;background:linear-gradient(90deg,var(--purple),var(--blue))"></div>
+              </div>
+            </div>
+          </div>
+          <div class="panel-header" style="border-top:1px solid var(--border);">
+            <div class="panel-title">Типы наклеек</div>
+          </div>
+          <div class="panel-body">
+            <div class="tags-cloud">
+              <div class="tag-chip foil">Foil <span class="tag-count">×1590</span></div>
+              <div class="tag-chip glitter">Glitter <span class="tag-count">×748</span></div>
+              <div class="tag-chip gold">Gold <span class="tag-count">×2424</span></div>
+              <div class="tag-chip holo">Holo <span class="tag-count">×1593</span></div>
+              <div class="tag-chip">Embroidered <span class="tag-count">×193</span></div>
+              <div class="tag-chip">Champion <span class="tag-count">×35</span></div>
+              <div class="tag-chip">Lenticular <span class="tag-count">×16</span></div>
+            </div>
+          </div>
+        </div>
+ 
+        <div class="panel overview-grid-full">
+          <div class="panel-header">
+            <div class="panel-title">Динамика средней цены (7 дней)</div>
+            <span style="font-family:var(--text-mono);font-size:9.5px;color:var(--green);" id="overview-trend">▲ +0.0%</span>
+          </div>
+          <div class="panel-body">
+            <div style="position:relative;height:90px;">
+              <canvas id="overview_mini_chart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /overview -->
+ 
+    <!-- ══ SCANNER ══ -->
+    <div class="page" id="page-scanner">
+ 
+      <!-- Topbar -->
+      <div class="scanner-topbar">
+        <div class="page-title" style="font-size:15px;flex-shrink:0;">Сканер</div>
+ 
+        <!-- Mode selector -->
+        <div class="scan-mode-selector">
+          <div class="scan-mode-tab active" id="scan-mode-tab-quick" data-mode="quick" onclick="Scanner.setMode('quick',this)">Quick Sweep</div>
+          <div class="scan-mode-tab" id="scan-mode-tab-deep" data-mode="deep" onclick="Scanner.setMode('deep',this)">Deep Scan</div>
+          <div class="scan-mode-tab" id="scan-mode-tab-history" data-mode="history" onclick="Scanner.setMode('history',this)">1 Item History</div>
+          <div class="scan-mode-tab" id="scan-mode-tab-category" data-mode="category" onclick="Scanner.setMode('category',this)">Category Fetch</div>
+        </div>
+ 
+        <div style="margin-left:auto;display:flex;gap:7px;align-items:center;">
+          <div class="scan-ticker" id="scan-current-ticker" style="display:none;">
+            <span class="scan-ticker-icon">⟳</span>
+            <span id="scan-current-name">—</span>
+          </div>
+          <div style="font-family:var(--text-mono);font-size:10px;color:var(--text-dim);" id="scan-counter-display">0/0</div>
+          <div style="font-family:var(--text-mono);font-size:10px;color:var(--text-dim);" id="scan-eta-display">—</div>
+          <button class="btn btn-primary" id="btn-start-scan" onclick="Scanner.toggle()">▶ Запустить</button>
+          <button class="btn btn-ghost" id="btn-reset-scan" onclick="Scanner.reset()">✕ Сброс</button>
+        </div>
+      </div>
+ 
+      <!-- Mode-specific config panels -->
+      <div class="scanner-mode-configs">
+ 
+        <!-- Quick Sweep config -->
+        <div class="mode-config active" id="mode-config-quick">
+          <div class="cfg-group">
+            <span class="cfg-label"><label for="quick-type-filter">Тип предметов</label></span>
+            <select class="cfg-select" id="quick-type-filter">
+              <option>Все типы</option>
+              <option>Sticker</option>
+              <option>Capsule</option>
+              <option>Weapon</option>
+              <option>Case</option>
+            </select>
+          </div>
+          <div class="cfg-group">
+            <span class="cfg-label"><label for="quick-event-filter">Событие</label></span>
+            <select class="cfg-select" id="quick-event-filter">
+              <option>Все события</option>
+              <option>Antwerp 2022</option>
+              <option>Paris 2023</option>
+              <option>Copenhagen 2024</option>
+              <option>Shanghai 2024</option>
+              <option>Austin 2025</option>
+            </select>
+          </div>
+          <div class="cfg-group">
+            <span class="cfg-label">Пропустить кэш &lt; мин</span>
+            <input class="cfg-input" type="number" value="5" id="quick-cache-skip" style="width:70px;">
+          </div>
+          <span style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);align-self:center;">
+            Быстрый обход всей базы · цена + объём
+          </span>
+        </div>
+ 
+        <!-- Deep Scan config -->
+        <div class="mode-config" id="mode-config-deep">
+          <div class="cfg-group">
+            <span class="cfg-label"><label for="deep-type-filter">Тип предметов</label></span>
+            <select class="cfg-select" id="deep-type-filter">
+              <option>Все типы</option>
+              <option>Sticker</option>
+              <option>Capsule</option>
+            </select>
+          </div>
+          <div class="cfg-group">
+            <span class="cfg-label"><label for="deep-order-depth">Глубина книги ордеров</label></span>
+            <input class="cfg-input" type="number" value="10" id="deep-order-depth" style="width:70px;">
+          </div>
+          <div class="cfg-group">
+            <span class="cfg-label"><label for="deep-delay">Задержка (мс)</label></span>
+            <input class="cfg-input" type="number" value="4000" id="deep-delay" style="width:80px;">
+          </div>
+          <span style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);align-self:center;">
+            priceoverview + itemordershistogram (2× запросов)
+          </span>
+        </div>
+ 
+        <!-- 1 Item History config -->
+        <div class="mode-config" id="mode-config-history">
+          <div class="cfg-group">
+            <span class="cfg-label">Предмет</span>
+            <input class="cfg-input" type="text" placeholder="Выберите из базы →" id="scan-history-item" style="min-width:200px;" readonly>
+          </div>
+          <div class="cfg-group">
+            <span class="cfg-label">Дата от</span>
+            <input class="cfg-input" type="date" id="scan-date-from">
+          </div>
+          <div class="cfg-group">
+            <span class="cfg-label">Дата до</span>
+            <input class="cfg-input" type="date" id="scan-date-to">
+          </div>
+          <div class="cfg-group">
+            <span class="cfg-label">Период</span>
+            <select class="cfg-select" id="scan-period-preset" onchange="Scanner.setPeriodPreset(this.value)">
+              <option value="">Произвольный</option>
+              <option value="7d">7 дней</option>
+              <option value="1m">1 месяц</option>
+              <option value="3m">3 месяца</option>
+              <option value="6m">6 месяцев</option>
+              <option value="1y">1 год</option>
+              <option value="all">Весь период</option>
+            </select>
+          </div>
+          <button class="btn btn-ghost" onclick="ItemList.openPickerForScan()" style="align-self:flex-end;">↗ Выбрать</button>
+        </div>
+ 
+        <!-- Category Fetch config -->
+        <div class="mode-config" id="mode-config-category">
+          <div class="cfg-group">
+            <span class="cfg-label"><label for="cat-lang">Язык</label></span>
+            <select class="cfg-select" id="cat-lang">
+              <option>english</option>
+              <option>russian</option>
+            </select>
+          </div>
+          <div class="cfg-group">
+            <span class="cfg-label"><label for="cat-max-items">Макс. предметов</label></span>
+            <input class="cfg-input" type="number" value="500" id="cat-max-items" style="width:80px;">
+          </div>
+          <div class="cfg-group">
+            <span class="cfg-label"><label for="cat-sort">Сортировка Steam</label></span>
+            <select class="cfg-select" id="cat-sort">
+              <option>По популярности</option>
+              <option>По цене ↑</option>
+              <option>По цене ↓</option>
+            </select>
+          </div>
+          <span style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);align-self:center;">
+            Загружает market_hash_name из Steam по фильтру
+          </span>
+        </div>
+      </div>
+ 
+      <!-- Category chips (visible only in category mode) -->
+      <div class="category-fetch-panel" id="category-chips">
+        <span style="font-family:var(--text-mono);font-size:8.5px;color:var(--text-dim);margin-right:6px;">КАТЕГОРИЯ:</span>
+        <div class="cat-chip selected" id="cat-chip-sticker" data-cat="sticker" onclick="Scanner.toggleCat(this,'sticker')">🏷 Наклейки</div>
+        <div class="cat-chip" id="cat-chip-capsule" data-cat="capsule" onclick="Scanner.toggleCat(this,'capsule')">📦 Капсулы</div>
+        <div class="cat-chip" id="cat-chip-case" onclick="Scanner.toggleCat(this,'case')">🎁 Кейсы</div>
+        <div class="cat-chip" id="cat-chip-weapon" onclick="Scanner.toggleCat(this,'weapon')">🔫 Оружие</div>
+        <div class="cat-chip" id="cat-chip-agent" onclick="Scanner.toggleCat(this,'agent')">🧍 Агенты</div>
+        <div class="cat-chip" id="cat-chip-patch" onclick="Scanner.toggleCat(this,'patch')">⊙ Нашивки</div>
+        <div class="cat-chip" id="cat-chip-music" onclick="Scanner.toggleCat(this,'music')">♪ Музыка</div>
+        <div class="cat-chip" id="cat-chip-graffiti" onclick="Scanner.toggleCat(this,'graffiti')">✎ Граффити</div>
+      </div>
+ 
+      <!-- Data toggles (visible in history mode) -->
+      <div class="data-toggles-row hidden" id="data-toggles-row">
+        <span class="data-toggle-label">ДАННЫЕ:</span>
+        <div class="toggle-chip on" id="data-toggle-price-now" onclick="this.classList.toggle('on')">Цена сейчас</div>
+        <div class="toggle-chip on" id="data-toggle-price-day" onclick="this.classList.toggle('on')">Цена за день</div>
+        <div class="toggle-chip on" id="data-toggle-sales-day" onclick="this.classList.toggle('on')">Продажи за день</div>
+        <div class="toggle-chip" id="data-toggle-sales-week" onclick="this.classList.toggle('on')">Продажи за неделю</div>
+        <div class="toggle-chip" id="data-toggle-price-week" onclick="this.classList.toggle('on')">Цена за неделю</div>
+        <div class="toggle-chip on" id="data-toggle-price-avg" onclick="this.classList.toggle('on')">Средняя цена</div>
+        <div class="toggle-chip" id="data-toggle-median" onclick="this.classList.toggle('on')">Медиана</div>
+        <div class="toggle-chip" id="data-toggle-buy-order" onclick="this.classList.toggle('on')">Buy Order</div>
+        <div class="toggle-chip" id="data-toggle-sell-order" onclick="this.classList.toggle('on')">Sell Order</div>
+        <div class="toggle-chip" id="data-toggle-vol-30d" onclick="this.classList.toggle('on')">Объём 30д</div>
+        <div class="toggle-chip" id="data-toggle-max-price" onclick="this.classList.toggle('on')">Макс. цена</div>
+        <div class="toggle-chip" id="data-toggle-min-price" onclick="this.classList.toggle('on')">Мин. цена</div>
+      </div>
+ 
+      <!-- Progress bar -->
+      <div class="scanner-progress-bar-wrap">
+        <div class="scanner-progress-bar" id="scan-progress" style="width:0%"></div>
+      </div>
+ 
+      <!-- Stats row -->
+      <div class="scanner-stats-row">
+        <div class="scanner-stat">
+          <div class="scanner-stat-num" style="color:var(--text-primary);" id="stat-total">0</div>
+          <div class="scanner-stat-label">Всего</div>
+        </div>
+        <div class="scanner-stat">
+          <div class="scanner-stat-num" style="color:var(--green);" id="stat-done">0</div>
+          <div class="scanner-stat-label">Готово</div>
+        </div>
+        <div class="scanner-stat">
+          <div class="scanner-stat-num" style="color:var(--cyan);" id="stat-queue">0</div>
+          <div class="scanner-stat-label">Ожидает</div>
+        </div>
+        <div class="scanner-stat">
+          <div class="scanner-stat-num" style="color:var(--red);" id="stat-errors">0</div>
+          <div class="scanner-stat-label">Ошибки</div>
+        </div>
+        <div class="scanner-stat">
+          <div class="scanner-stat-num" style="color:var(--gold);" id="stat-rps">—</div>
+          <div class="scanner-stat-label">req/мин</div>
+        </div>
+      </div>
+ 
+      <!-- Queue + Log -->
+      <div class="scanner-body">
+        <div class="scanner-queue-panel">
+          <div class="scanner-panel-header">
+            Очередь
+            <span style="font-size:9px;">FIFO</span>
+          </div>
+          <div class="queue-list" id="scan-queue-list">
+            <div style="padding:16px;color:var(--text-dim);font-size:10.5px;text-align:center;font-family:var(--text-mono);">
+              Очередь пуста
+            </div>
+          </div>
+        </div>
+        <div class="scanner-log-panel">
+          <div class="scanner-panel-header">
+            Лог сканирования
+            <button class="btn btn-ghost" id="btn-clear-log" style="padding:2px 8px;font-size:9px;" onclick="Scanner.clearLog()">Очистить</button>
+          </div>
+          <div class="log-body" id="scan-log-body"></div>
+          <div class="log-footer">
+            <span style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">real-time · WebSocket</span>
+            <span id="scan-log-count" style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">0 строк</span>
+          </div>
+        </div>
+      </div>
+    </div><!-- /scanner -->
+ 
+    <!-- ══ DATABASE ══ -->
+    <div class="page" id="page-database">
+      <div class="db-topbar">
+        <div class="page-title" style="font-size:15px;">База данных</div>
+        <div class="db-search-big">
+          <span style="color:var(--text-dim);font-size:12px;">⌕</span>
+          <input type="text" id="db-search" placeholder="Поиск по названию..." oninput="Database.search(this.value)">
+        </div>
+        <select class="select-box" id="db-type-filter" onchange="Database.filterType(this.value)">
+          <option value="">Все типы</option>
+          <option value="Sticker">Sticker</option>
+          <option value="Capsule">Capsule</option>
+          <option value="Weapon">Weapon</option>
+          <option value="Case">Case</option>
+        </select>
+        <select class="select-box" id="db-event-filter" onchange="Database.filterEvent(this.value)">
+          <option value="">Все события</option>
+          <option value="Antwerp 2022">Antwerp 2022</option>
+          <option value="Paris 2023">Paris 2023</option>
+          <option value="Copenhagen 2024">Copenhagen 2024</option>
+          <option value="Shanghai 2024">Shanghai 2024</option>
+          <option value="Austin 2025">Austin 2025</option>
+        </select>
+        <div class="ml-auto" style="display:flex;gap:6px;">
+          <button class="btn btn-primary" id="btn-db-add" style="font-size:10px;" onclick="Database.addItem()">+ Добавить</button>
+          <button class="btn btn-ghost" id="btn-db-save" style="font-size:10px;" onclick="Database.save()">💾 Сохранить</button>
+          <button class="btn btn-ghost" id="btn-db-export" style="font-size:10px;" onclick="Settings.exportDB()">↑ Экспорт</button>
+          <button class="btn btn-outline" id="btn-db-import" style="font-size:10px;" onclick="Settings.importDB()">↓ Импорт</button>
+        </div>
+      </div>
+ 
+      <div class="db-table-wrap">
+        <table class="db-table" id="db-table">
+          <thead>
+            <tr>
+              <th style="width:34px;"></th>
+              <th onclick="Database.sort('name')">Название ↕</th>
+              <th onclick="Database.sort('type')">Тип ↕</th>
+              <th>Событие</th>
+              <th>ID</th>
+              <th onclick="Database.sort('price')">Цена ₽ ↕</th>
+              <th>Объём 24ч</th>
+              <th onclick="Database.sort('scanned')">Сканирован ↕</th>
+              <th style="width:110px;">Действия</th>
+            </tr>
+          </thead>
+          <tbody id="db-tbody">
+            <tr>
+              <td colspan="9" style="text-align:center;padding:32px;color:var(--text-dim);font-family:var(--text-mono);">
+                Загрузка базы данных...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+ 
+      <div class="db-footer">
+        <span>Показано: <span class="count-highlight" id="db-shown">—</span> / Всего: <span class="count-highlight" id="db-total">—</span></span>
+        <span id="db-scan-info" style="color:var(--text-dim);">—</span>
+      </div>
+    </div><!-- /database -->
+ 
+    <!-- ══ HISTORY ══ -->
+    <div class="page" id="page-history">
+ 
+      <div class="history-topbar">
+        <div class="page-title" style="font-size:15px;">История цен</div>
+        <div class="range-tabs">
+          <div class="range-tab active" id="range-tab-day" onclick="History.setRange('day',this)">1Д</div>
+          <div class="range-tab" id="range-tab-3d" onclick="History.setRange('3d',this)">3Д</div>
+          <div class="range-tab" id="range-tab-week" onclick="History.setRange('week',this)">7Д</div>
+          <div class="range-tab" id="range-tab-month" onclick="History.setRange('month',this)">1М</div>
+          <div class="range-tab" id="range-tab-year" onclick="History.setRange('year',this)">1Г</div>
+        </div>
+        <div class="ml-auto" style="display:flex;gap:6px;align-items:center;">
+          <select class="select-box" id="history-event-filter" onchange="History.filterEvent(this.value)">
+            <option value="">Все события</option>
+            <option value="Antwerp 2022">Antwerp 2022</option>
+            <option value="Shanghai 2024">Shanghai 2024</option>
+            <option value="Austin 2025">Austin 2025</option>
+          </select>
+          <button class="btn btn-outline" id="btn-history-refresh" style="font-size:10px;" onclick="History.refresh()">↻</button>
+        </div>
+      </div>
+ 
+      <!-- Stats bar -->
+      <div class="history-stats-row">
+        <div class="history-stat">
+          <span class="history-stat-label">ТЕКУЩАЯ СРЕДНЯЯ</span>
+          <span class="history-stat-val" style="color:var(--cyan);" id="hist-stat-avg">— ₽</span>
+        </div>
+        <div class="history-stat">
+          <span class="history-stat-label">МИН. ЗА ПЕРИОД</span>
+          <span class="history-stat-val" style="color:var(--green);" id="hist-stat-min">— ₽</span>
+        </div>
+        <div class="history-stat">
+          <span class="history-stat-label">МАКС. ЗА ПЕРИОД</span>
+          <span class="history-stat-val" style="color:var(--red);" id="hist-stat-max">— ₽</span>
+        </div>
+        <div class="history-stat">
+          <span class="history-stat-label">ИЗМЕНЕНИЕ</span>
+          <span class="history-stat-val" style="color:var(--green);" id="hist-stat-change">—%</span>
+        </div>
+        <div class="history-stat">
+          <span class="history-stat-label">ОБЪЁМ ЗА ПЕРИОД</span>
+          <span class="history-stat-val" style="color:var(--gold);" id="hist-stat-vol">—</span>
+        </div>
+      </div>
+ 
+      <!-- Steam-style dual chart -->
+      <div class="history-chart-area">
+        <div class="history-chart-panel">
+          <div class="history-chart-panel-header">
+            <div class="history-chart-panel-title">
+              СРЕДНЯЯ ЦЕНА · <span id="history-range-label">1 день</span>
+            </div>
+            <div style="display:flex;gap:10px;font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">
+              <span id="hist-hover-date">—</span>
+              <span id="hist-hover-price" style="color:var(--cyan);">—</span>
+              <span id="hist-hover-vol" style="color:var(--gold);">—</span>
+            </div>
+          </div>
+ 
+          <!-- Price chart -->
+          <div class="history-price-chart-wrap">
+            <canvas id="history_price_chart"></canvas>
+          </div>
+ 
+          <!-- Volume chart (Steam-style bar below) -->
+          <div style="padding:0 14px 4px;font-family:var(--text-mono);font-size:8px;color:var(--text-dim);letter-spacing:.1em;">
+            ОБЪЁМ ПРОДАЖ
+          </div>
+          <div class="history-volume-chart-wrap">
+            <canvas id="history_volume_chart"></canvas>
+          </div>
+ 
+          <!-- Legend -->
+          <div class="history-tooltip-legend">
+            <div class="ht-legend-item">
+              <div class="ht-legend-dot" style="background:var(--cyan);"></div>
+              <span>Средняя цена</span>
+              <span class="ht-legend-val" id="hist-legend-price">—</span>
+            </div>
+            <div class="ht-legend-item">
+              <div class="ht-legend-dot" style="background:var(--gold);"></div>
+              <span>Объём продаж</span>
+              <span class="ht-legend-val" id="hist-legend-vol">—</span>
+            </div>
+            <div class="ht-legend-item">
+              <div class="ht-legend-dot" style="background:var(--green);"></div>
+              <span>Мин. цена</span>
+              <span class="ht-legend-val" id="hist-legend-min">—</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /history -->
+ 
+    <!-- ══ SIMULATION (⚙) ══ -->
+    <div class="page" id="page-simulation">
+      <div class="page-header">
+        <div class="page-title">⚙ Симуляция предмета</div>
+        <div style="display:flex;gap:7px;">
+          <span style="font-family:var(--text-mono);font-size:9.5px;color:var(--text-dim);align-self:center;">
+            Запрос к Steam API для одного предмета
+          </span>
+        </div>
+      </div>
+ 
+      <div class="sim-layout">
+ 
+        <!-- Left: item picker + toggles -->
+        <div class="sim-sidebar">
+ 
+          <!-- Item picker -->
+          <div class="sim-item-picker">
+            <div class="sim-section-title">── Выбранный предмет</div>
+            <div class="sim-selected-item" onclick="SimPage.pickItem()" id="sim-selected-item">
+              <div class="sim-selected-icon">🏷</div>
+              <div>
+                <div class="sim-selected-name" id="sim-item-name">Нажмите для выбора предмета</div>
+                <div class="sim-selected-sub" id="sim-item-hash">market_hash_name</div>
+              </div>
+            </div>
+            <div class="sim-select-hint">← из Базы данных</div>
+          </div>
+ 
+          <!-- Toggles -->
+          <div class="sim-toggles-section">
+ 
+            <div class="sim-toggle-group">
+              <div class="sim-toggle-group-title">── Цены</div>
+ 
+              <div class="sim-toggle-row">
+                <div>
+                  <div class="sim-toggle-name">Цена сейчас</div>
+                  <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">lowest_price</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sim-chk-price_now" checked onchange="SimPage.toggleParam('price_now',this.checked)">
+                  <div class="toggle-track"></div>
+                  <div class="toggle-knob"></div>
+                </label>
+              </div>
+ 
+              <div class="sim-toggle-row">
+                <div>
+                  <div class="sim-toggle-name">Медиана 24ч</div>
+                  <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">median_price</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sim-chk-price_median" checked onchange="SimPage.toggleParam('price_median',this.checked)">
+                  <div class="toggle-track"></div>
+                  <div class="toggle-knob"></div>
+                </label>
+              </div>
+ 
+              <div class="sim-toggle-row">
+                <div>
+                  <div class="sim-toggle-name">Средняя цена</div>
+                  <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">average_price</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sim-chk-price_avg" onchange="SimPage.toggleParam('price_avg',this.checked)">
+                  <div class="toggle-track"></div>
+                  <div class="toggle-knob"></div>
+                </label>
+              </div>
+ 
+              <div class="sim-toggle-row">
+                <div>
+                  <div class="sim-toggle-name">Цена за день</div>
+                  <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">daily_price</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sim-chk-price_day" onchange="SimPage.toggleParam('price_day',this.checked)">
+                  <div class="toggle-track"></div>
+                  <div class="toggle-knob"></div>
+                </label>
+              </div>
+ 
+              <div class="sim-toggle-row">
+                <div>
+                  <div class="sim-toggle-name">Цена за неделю</div>
+                  <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">weekly_price</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sim-chk-price_week" onchange="SimPage.toggleParam('price_week',this.checked)">
+                  <div class="toggle-track"></div>
+                  <div class="toggle-knob"></div>
+                </label>
+              </div>
+            </div>
+ 
+            <div class="sim-toggle-group">
+              <div class="sim-toggle-group-title">── Объёмы продаж</div>
+ 
+              <div class="sim-toggle-row">
+                <div>
+                  <div class="sim-toggle-name">Продажи за 24ч</div>
+                  <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">volume 24h</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sim-chk-vol_24h" checked onchange="SimPage.toggleParam('vol_24h',this.checked)">
+                  <div class="toggle-track"></div>
+                  <div class="toggle-knob"></div>
+                </label>
+              </div>
+ 
+              <div class="sim-toggle-row">
+                <div>
+                  <div class="sim-toggle-name">Продажи за неделю</div>
+                  <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">volume 7d</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sim-chk-vol_7d" onchange="SimPage.toggleParam('vol_7d',this.checked)">
+                  <div class="toggle-track"></div>
+                  <div class="toggle-knob"></div>
+                </label>
+              </div>
+ 
+              <div class="sim-toggle-row">
+                <div>
+                  <div class="sim-toggle-name">Объём за месяц</div>
+                  <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">volume 30d</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sim-chk-vol_30d" onchange="SimPage.toggleParam('vol_30d',this.checked)">
+                  <div class="toggle-track"></div>
+                  <div class="toggle-knob"></div>
+                </label>
+              </div>
+            </div>
+ 
+            <div class="sim-toggle-group">
+              <div class="sim-toggle-group-title">── Стакан ордеров</div>
+ 
+              <div class="sim-toggle-row">
+                <div>
+                  <div class="sim-toggle-name">Buy Order (лучший)</div>
+                  <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">highest_buy_order</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sim-chk-buy_order" checked onchange="SimPage.toggleParam('buy_order',this.checked)">
+                  <div class="toggle-track"></div>
+                  <div class="toggle-knob"></div>
+                </label>
+              </div>
+ 
+              <div class="sim-toggle-row">
+                <div>
+                  <div class="sim-toggle-name">Sell Order (лучший)</div>
+                  <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">lowest_sell_order</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sim-chk-sell_order" checked onchange="SimPage.toggleParam('sell_order',this.checked)">
+                  <div class="toggle-track"></div>
+                  <div class="toggle-knob"></div>
+                </label>
+              </div>
+ 
+              <div class="sim-toggle-row">
+                <div>
+                  <div class="sim-toggle-name">Книга ордеров</div>
+                  <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">itemordershistogram</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sim-chk-orderbook" onchange="SimPage.toggleParam('orderbook',this.checked)">
+                  <div class="toggle-track"></div>
+                  <div class="toggle-knob"></div>
+                </label>
+              </div>
+            </div>
+ 
+            <div class="sim-toggle-group">
+              <div class="sim-toggle-group-title">── История цен</div>
+ 
+              <div class="sim-toggle-row">
+                <div>
+                  <div class="sim-toggle-name">Полная история</div>
+                  <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">price_history (all)</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sim-chk-hist_full" onchange="SimPage.toggleParam('history_full',this.checked)">
+                  <div class="toggle-track"></div>
+                  <div class="toggle-knob"></div>
+                </label>
+              </div>
+ 
+              <div class="sim-toggle-row">
+                <div>
+                  <div class="sim-toggle-name">История за период</div>
+                  <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);">price_history (range)</div>
+                </div>
+                <label class="toggle-switch">
+                  <input type="checkbox" id="sim-chk-hist_range" onchange="SimPage.toggleParam('history_range',this.checked)">
+                  <div class="toggle-track"></div>
+                  <div class="toggle-knob"></div>
+                </label>
+              </div>
+            </div>
+ 
+          </div><!-- /sim-toggles-section -->
+        </div><!-- /sim-sidebar -->
+ 
+        <!-- Right: run bar + console -->
+        <div class="sim-main">
+ 
+          <div class="sim-run-bar">
+            <button class="btn btn-primary" id="btn-sim-run" onclick="SimPage.run()">▶ Запросить Steam API</button>
+            <button class="btn btn-ghost" id="btn-sim-clear" onclick="SimPage.clearConsole()">✕ Очистить</button>
+            <div style="margin-left:auto;font-family:var(--text-mono);font-size:9.5px;color:var(--text-dim);">
+              Параметров выбрано: <span id="sim-param-count" style="color:var(--cyan);">5</span>
+            </div>
+            <div style="font-family:var(--text-mono);font-size:9.5px;color:var(--text-dim);" id="sim-last-time">—</div>
+          </div>
+ 
+          <!-- Result cards -->
+          <div class="sim-result-grid" id="sim-result-grid" style="display:none;">
+            <!-- populated by JS -->
+          </div>
+ 
+          <!-- Console -->
+          <div class="sim-console">
+            <div class="sim-console-header">
+              <span>── КОНСОЛЬ ОТВЕТОВ · STEAM API</span>
+              <span id="sim-status" style="color:var(--text-dim);">ожидание запроса</span>
+            </div>
+            <div class="sim-console-body" id="sim-console-body">
+              <div class="sim-log-sep">── ожидание запроса ──────────────────────────────────────────</div>
+              <div class="sim-log-line">
+                <span class="sim-log-key">status</span>
+                <span class="sim-log-val">нажмите ▶ для запроса</span>
+              </div>
+              <div class="sim-log-line">
+                <span class="sim-log-key">endpoint</span>
+                <span class="sim-log-val">/market/priceoverview</span>
+              </div>
+              <div class="sim-log-line">
+                <span class="sim-log-key">appid</span>
+                <span class="sim-log-val v-gold">730</span>
+              </div>
+            </div>
+          </div>
+ 
+        </div><!-- /sim-main -->
+      </div><!-- /sim-layout -->
+    </div><!-- /simulation -->
+ 
+    <!-- ══ SETTINGS ══ -->
+    <div class="page" id="page-settings">
+      <div class="page-header">
+        <div class="page-title">Настройки</div>
+        <button class="btn btn-primary" id="btn-settings-save" onclick="Settings.save()">💾 Сохранить</button>
+      </div>
+ 
+      <div class="settings-scroll">
+        <div class="settings-grid">
+ 
+          <!-- Scanner params -->
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">Параметры сканера Steam</div></div>
+            <div class="panel-body">
+              <div class="form-group">
+                <label class="form-label" for="setting-min-delay">Минимальная задержка (мс)</label>
+                <input class="form-input" type="number" value="2000" id="setting-min-delay">
+                <div class="form-hint">Не ставить ниже 1500 — риск блокировки IP</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="setting-max-delay">Максимальная задержка (мс)</label>
+                <input class="form-input" type="number" value="3500" id="setting-max-delay">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="setting-timeout">Таймаут запроса (мс)</label>
+                <input class="form-input" type="number" value="15000" id="setting-timeout">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="setting-retries">Повторных попыток при ошибке</label>
+                <input class="form-input" type="number" value="2" id="setting-retries">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="setting-currency">Валюта (5=RUB · 1=USD · 3=EUR)</label>
+                <input class="form-input" type="number" value="5" id="setting-currency">
+                <div class="form-hint" id="currency-hint">Текущий код: 5 → RUB ₽</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="setting-default-mode">Режим сканера по умолчанию</label>
+                <select class="form-select" id="setting-default-mode">
+                  <option value="quick">Quick Sweep — быстрый обход</option>
+                  <option value="deep">Deep Scan — с книгой ордеров</option>
+                  <option value="history">1 Item History — история предмета</option>
+                  <option value="category">Category Fetch — по категории</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="setting-delta-threshold">Порог Delta % для аномалий</label>
+                <input class="form-input" type="number" value="5" id="setting-delta-threshold">
+                <div class="form-hint">Движение выше N% → отметка как аномалия</div>
+              </div>
+            </div>
+          </div>
+ 
+          <!-- API / Proxy -->
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">Steam API / Подключение</div></div>
+            <div class="panel-body">
+              <div class="form-group">
+                <label class="form-label" for="setting-api-key">Steam API Key (необязательно)</label>
+                <input class="form-input" type="password" placeholder="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" id="setting-api-key">
+                <div class="form-hint">Нужен только для приватных эндпоинтов</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="setting-proxy-url">Прокси URL (необязательно)</label>
+                <input class="form-input" type="text" placeholder="http://proxy-host:port" id="setting-proxy-url">
+                <div class="form-hint">http/https/socks5 прокси для запросов к Steam</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="setting-api-base">Localhost API URL</label>
+                <input class="form-input" type="text" value="http://localhost:3000/api" id="setting-api-base">
+                <div class="form-hint">Базовый URL вашего Node.js сервера</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="setting-ws-url">WebSocket URL</label>
+                <input class="form-input" type="text" value="ws://localhost:3000" id="setting-ws-url">
+              </div>
+              <div style="display:flex;gap:7px;margin-top:8px;">
+                <button class="btn btn-outline" id="btn-test-connection" onclick="Settings.testConnection()">⟳ Тест подключения</button>
+                <button class="btn btn-ghost" id="btn-test-proxy" onclick="Settings.testProxy()">⟳ Тест прокси</button>
+              </div>
+            </div>
+          </div>
+ 
+          <!-- Cache -->
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">Кэш цен</div></div>
+            <div class="panel-body">
+              <div class="form-group">
+                <label class="form-label" for="setting-cache-ttl">TTL кэша (минут)</label>
+                <input class="form-input" type="number" value="5" id="setting-cache-ttl">
+                <div class="form-hint">Повторные запросы берутся из кэша</div>
+              </div>
+              <div style="font-family:var(--text-mono);font-size:9.5px;color:var(--text-dim);line-height:2;margin-bottom:10px;">
+                Записей в кэше: <span style="color:var(--cyan);" id="cache-size">—</span><br>
+                Hit rate: <span style="color:var(--green);" id="cache-hit-rate">—</span>
+              </div>
+              <div style="display:flex;gap:7px;">
+                <button class="btn btn-ghost" id="btn-show-cache" onclick="Settings.showCache()">Статистика</button>
+                <button class="btn btn-danger" id="btn-clear-cache" onclick="Settings.clearCache()">Очистить кэш</button>
+              </div>
+            </div>
+          </div>
+ 
+          <!-- Export / Import -->
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">Экспорт / Импорт</div></div>
+            <div class="panel-body">
+              <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);margin-bottom:9px;letter-spacing:.1em;">ЭКСПОРТ:</div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;">
+                <button class="btn btn-ghost" id="btn-export-db" onclick="Settings.exportDB()">↑ База предметов</button>
+                <button class="btn btn-ghost" id="btn-export-history" onclick="Toast.show('Экспорт истории...','info')">↑ История цен</button>
+                <button class="btn btn-ghost" id="btn-export-settings" onclick="Toast.show('Экспорт настроек...','info')">↑ Настройки</button>
+              </div>
+              <div style="font-family:var(--text-mono);font-size:9px;color:var(--text-dim);margin-bottom:9px;letter-spacing:.1em;">ИМПОРТ:</div>
+              <button class="btn btn-outline" id="btn-import-db" onclick="Settings.importDB()">↓ Импорт базы JSON</button>
+            </div>
+          </div>
+ 
+          <!-- Data files -->
+          <div class="panel settings-full">
+            <div class="panel-header"><div class="panel-title">Файлы данных</div></div>
+            <div class="file-list-item"><span class="file-icon">📦</span><span>cs2_marketplaceids.json</span><span class="file-desc">— база предметов</span></div>
+            <div class="file-list-item"><span class="file-icon">⚙</span><span>settings.json</span><span class="file-desc">— настройки сканера</span></div>
+            <div class="file-list-item"><span class="file-icon">📈</span><span>price_history.json</span><span class="file-desc">— история снимков цен</span></div>
+            <div class="file-list-item"><span class="file-icon">⚡</span><span>market_cache.json</span><span class="file-desc">— кэш цен (TTL настраивается)</span></div>
+            <div class="file-list-item"><span class="file-icon">🔄</span><span>scan_state.json</span><span class="file-desc">— состояние очереди сканера</span></div>
+            <div class="panel-body" style="border-top:1px solid var(--border);">
+              <div style="font-family:var(--text-mono);font-size:9.5px;color:var(--text-dim);line-height:2;">
+                Steam API: <span style="color:var(--cyan);">steamcommunity.com/market/priceoverview</span><br>
+                appid: <span style="color:var(--cyan);">730 (CS2)</span>
+              </div>
+            </div>
+          </div>
+ 
+        </div>
+      </div>
+    </div><!-- /settings -->
+ 
+  </div><!-- /main-content -->
+ 
+  <!-- ─── DETAIL PANEL ─── -->
+  <div id="detail-panel">
+    <div class="detail-header">
+      <div class="detail-item-img" id="detail-img">🏷</div>
+      <div class="detail-item-meta">
+        <div class="detail-item-name" id="detail_name">Название предмета</div>
+        <div class="detail-item-hash" id="detail_hash">market_hash_name</div>
+        <div class="detail-item-tags" id="detail_tags"></div>
+      </div>
+      <button class="detail-close" id="btn-detail-close" onclick="ItemDetail.close()">✕</button>
+    </div>
+ 
+    <!-- Tabs -->
+    <div class="detail-tabs">
+      <div class="detail-tab active" id="detail-tab-btn-prices" onclick="ItemDetail.switchTab('prices',this)">Цены</div>
+      <div class="detail-tab" id="detail-tab-btn-chart" onclick="ItemDetail.switchTab('chart',this)">График</div>
+      <div class="detail-tab" id="detail-tab-btn-orderbook" onclick="ItemDetail.switchTab('orderbook',this)">Стакан</div>
+      <div class="detail-tab" id="detail-tab-btn-simulators" onclick="ItemDetail.switchTab('simulators',this)">⚙ Sim</div>
+    </div>
+ 
+    <div id="detail-body">
+ 
+      <!-- Tab: Prices -->
+      <div class="detail-tab-panel active" id="detail-tab-prices">
+        <div class="detail-price-grid">
+          <div class="price-cell" data-tooltip="Минимальная цена за 24 часа">
+            <div class="price-cell-label">Мин. цена 24ч</div>
+            <div class="price-cell-value green" id="detail_price_lowest">—</div>
+          </div>
+          <div class="price-cell" data-tooltip="Медианная цена за 24 часа">
+            <div class="price-cell-label">Медиана 24ч</div>
+            <div class="price-cell-value cyan" id="detail_price_median">—</div>
+          </div>
+          <div class="price-cell" data-tooltip="Средняя цена">
+            <div class="price-cell-label">Средняя</div>
+            <div class="price-cell-value" id="detail_price_average">—</div>
+          </div>
+          <div class="price-cell" data-tooltip="Взвешенное среднее">
+            <div class="price-cell-label">Взвеш. среднее</div>
+            <div class="price-cell-value gold" id="detail_price_weighted">—</div>
+          </div>
+          <div class="price-cell" data-tooltip="Лучший Buy Order">
+            <div class="price-cell-label">Buy Order</div>
+            <div class="price-cell-value green" id="detail_buyorder_price">—</div>
+            <div class="price-cell-sub">кол: <span id="detail_buyorder_qty">—</span></div>
+          </div>
+          <div class="price-cell" data-tooltip="Лучший Sell Order">
+            <div class="price-cell-label">Sell Order</div>
+            <div class="price-cell-value red" id="detail_sellorder_price">—</div>
+            <div class="price-cell-sub">кол: <span id="detail_sellorder_qty">—</span></div>
+          </div>
+          <div class="price-cell" data-tooltip="Объём продаж за 24 часа">
+            <div class="price-cell-label">Объём 24ч</div>
+            <div class="price-cell-value orange" id="detail_volume_24h">—</div>
+          </div>
+          <div class="price-cell" data-tooltip="Спред = (Ask − Bid) / Средняя">
+            <div class="price-cell-label">Спред %</div>
+            <div class="price-cell-value" id="detail_spread">—</div>
+            <div class="spread-bar-wrap"><div class="spread-bar-fill" id="detail_spread_bar" style="width:0%"></div></div>
+          </div>
+          <div class="price-cell full" data-tooltip="Рыночная цена RUB">
+            <div class="price-cell-label">Рыночная цена (RUB)</div>
+            <div class="price-cell-value gold" style="font-size:22px;" id="detail_onlyprice">—</div>
+          </div>
+        </div>
+        <div class="scan-info-row">
+          <span>Скан: <span class="val" id="detail_lastScanned">—</span></span>
+          <span>Обн: <span class="val" id="detail_current_ts">—</span></span>
+          <span class="source-tag" id="detail_orderbook_source">steam_api</span>
+        </div>
+        <div style="padding:8px 10px;font-family:var(--text-mono);font-size:9.5px;color:var(--text-dim);line-height:2;">
+          <div>ID: <span style="color:var(--cyan);" id="detail_id">—</span></div>
+          <div>historyRef: <span style="color:var(--purple);" id="detail_historyRef">—</span></div>
+        </div>
+      </div>
+ 
+      <!-- Tab: Chart -->
+      <div class="detail-tab-panel" id="detail-tab-chart">
+        <div class="detail-chart-section">
+          <div class="detail-section-title">График цены</div>
+          <div class="chart-range-tabs">
+            <div class="range-tab active" id="detail-range-tab-day" onclick="ItemDetail.switchChart('day',this)">1Д</div>
+            <div class="range-tab" id="detail-range-tab-3d" onclick="ItemDetail.switchChart('3d',this)">3Д</div>
+            <div class="range-tab" id="detail-range-tab-week" onclick="ItemDetail.switchChart('week',this)">7Д</div>
+            <div class="range-tab" id="detail-range-tab-month" onclick="ItemDetail.switchChart('month',this)">1М</div>
+            <div class="range-tab" id="detail-range-tab-year" onclick="ItemDetail.switchChart('year',this)">1Г</div>
+          </div>
+          <div class="chart-container-3d" id="detail_priceChart">
+            <canvas id="detail_priceChart_day"></canvas>
+            <div class="glow-overlay"></div>
+          </div>
+          <div class="chart-tooltip-info">
+            <span>Min: <span class="val" id="chart-info-min">—</span></span>
+            <span>Max: <span class="val" id="chart-info-max">—</span></span>
+            <span>Avg: <span class="val" id="chart-info-avg">—</span></span>
+          </div>
+        </div>
+      </div>
+ 
+      <!-- Tab: Order Book -->
+      <div class="detail-tab-panel" id="detail-tab-orderbook">
+        <div class="detail-chart-section">
+          <div class="detail-section-title">Книга ордеров</div>
+          <div class="orderbook-wrap">
+            <div class="orderbook-side buy">
+              <div class="orderbook-side-title buy">▲ ПОКУПКА</div>
+              <div id="detail_orderbook_buy"></div>
+            </div>
+            <div class="orderbook-side sell">
+              <div class="orderbook-side-title sell">▼ ПРОДАЖА</div>
+              <div id="detail_orderbook_sell"></div>
+            </div>
+          </div>
+          <div style="font-family:var(--text-mono);font-size:8.5px;color:var(--text-dim);margin-top:6px;text-align:center;">
+            Последнее сканирование: <span id="detail_orderbook_lastScan">—</span>
+          </div>
+        </div>
+      </div>
+ 
+      <!-- Tab: Simulators -->
+      <div class="detail-tab-panel" id="detail-tab-simulators">
+        <div class="detail-sim-panel">
+ 
+          <div class="detail-sim-title">── Параметры запроса</div>
+ 
+          <div class="detail-sim-toggle">
+            <span class="detail-sim-toggle-name">Цена сейчас</span>
+            <label class="toggle-switch" for="detail-sim-chk-price-now">
+              <input type="checkbox" id="detail-sim-chk-price-now" checked>
+              <div class="toggle-track"></div><div class="toggle-knob"></div>
+            </label>
+          </div>
+          <div class="detail-sim-toggle">
+            <span class="detail-sim-toggle-name">Медиана 24ч</span>
+            <label class="toggle-switch" for="detail-sim-chk-median">
+              <input type="checkbox" id="detail-sim-chk-median" checked>
+              <div class="toggle-track"></div><div class="toggle-knob"></div>
+            </label>
+          </div>
+          <div class="detail-sim-toggle">
+            <span class="detail-sim-toggle-name">Объём продаж</span>
+            <label class="toggle-switch" for="detail-sim-chk-volume">
+              <input type="checkbox" id="detail-sim-chk-volume" checked>
+              <div class="toggle-track"></div><div class="toggle-knob"></div>
+            </label>
+          </div>
+          <div class="detail-sim-toggle">
+            <span class="detail-sim-toggle-name">Buy/Sell Orders</span>
+            <label class="toggle-switch" for="detail-sim-chk-orders">
+              <input type="checkbox" id="detail-sim-chk-orders">
+              <div class="toggle-track"></div><div class="toggle-knob"></div>
+            </label>
+          </div>
+          <div class="detail-sim-toggle">
+            <span class="detail-sim-toggle-name">Книга ордеров</span>
+            <label class="toggle-switch" for="detail-sim-chk-orderbook">
+              <input type="checkbox" id="detail-sim-chk-orderbook">
+              <div class="toggle-track"></div><div class="toggle-knob"></div>
+            </label>
+          </div>
+          <div class="detail-sim-toggle">
+            <span class="detail-sim-toggle-name">История (весь период)</span>
+            <label class="toggle-switch" for="detail-sim-chk-history">
+              <input type="checkbox" id="detail-sim-chk-history">
+              <div class="toggle-track"></div><div class="toggle-knob"></div>
+            </label>
+          </div>
+ 
+          <button class="btn btn-primary detail-sim-run-btn" id="btn-detail-sim-run"
+                  onclick="ItemDetail.runSim()">
+            ▶ Запросить Steam API
+          </button>
+ 
+          <div style="margin-top:10px;font-family:var(--text-mono);font-size:8.5px;color:var(--text-dim);letter-spacing:.1em;">
+            ── Ответ
+          </div>
+          <div id="detail-sim-output" style="padding:6px 0;font-family:var(--text-mono);font-size:10px;color:var(--text-dim);">
+            Нажмите ▶ для запроса
+          </div>
+        </div>
+      </div>
+ 
+    </div><!-- /detail-body -->
+  </div><!-- /detail-panel -->
+ 
+</div><!-- /app -->
+ 
+<div id="toast-container"></div>
+ 
+<script>
+'use strict';
+ 
+/* ═══ AppConfig ═══ */
+const AppConfig = {
+  API_BASE: window.location.origin + '/api',
+  WS_URL:   'ws://' + window.location.host,
+  REFRESH_INTERVAL: 30000,
+  ITEM_LIMIT: 200,
+};
+ 
+/* ═══ State ═══ */
+const State = {
+  items: [], itemsTotal: 0,
+  filter: 'all', search: '',
+  dbSearch: '', dbType: '', dbEvent: '',
+  dbSort: { key: 'name', dir: 1 },
+  selectedItemId: null,
+  scanRunning: false,
+  scanMode: 'quick',
+  logLines: [],
+  detailChartRange: 'day',
+  detailTab: 'prices',
+  historyRange: 'day',
+  detailChart: null,
+  overviewChart: null,
+  historyPriceChart: null,
+  historyVolumeChart: null,
+};
+ 
+/* ═══ Toast ═══ */
+const Toast = {
+  show(msg, type = 'info') {
+    const icons  = { ok:'✓', err:'✕', info:'ℹ', warn:'⚠' };
+    const colors = { ok:'var(--green)', err:'var(--red)', info:'var(--cyan)', warn:'var(--orange)' };
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.innerHTML = `<span style="color:${colors[type]||colors.info}">${icons[type]||'ℹ'}</span> ${msg}`;
+    document.getElementById('toast-container').appendChild(t);
+    setTimeout(() => t.remove(), 3200);
+  },
+};
+ 
+/* ═══ Clock ═══ */
+const Clock = {
+  init() { this.tick(); setInterval(() => this.tick(), 1000); },
+  tick() {
+    const el = document.getElementById('live-clock');
+    if (el) el.textContent = new Date().toTimeString().slice(0, 8);
+  },
+};
+ 
+/* ═══ Navigation ═══ */
+const Navigation = {
+  current: 'overview',
+  go(pageId, navEl) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    const page = document.getElementById('page-' + pageId);
+    if (page) page.classList.add('active');
+    if (navEl) navEl.classList.add('active');
+    this.current = pageId;
+ 
+    const ilp = document.getElementById('item-list-panel');
+    if (['database'].includes(pageId)) {
+      ilp.classList.remove('collapsed');
+    } else {
+      ilp.classList.add('collapsed');
+    }
+ 
+    if (pageId === 'history') History.init();
+    if (pageId === 'settings') Settings.load();
+    if (pageId === 'simulation') SimPage.init();
+  },
+};
+ 
+/* ═══ Charts ═══ */
+Chart.defaults.color = '#37506a';
+Chart.defaults.font.family = "'Share Tech Mono', monospace";
+Chart.defaults.font.size = 9;
+ 
+const Charts = {
+  genData(n, base, vol = 0.1) {
+    const out = []; let p = base;
+    for (let i = 0; i < n; i++) {
+      p = Math.max(1, p * (1 + (Math.random() - 0.48) * vol));
+      out.push(+p.toFixed(2));
+    }
+    return out;
+  },
+  genLabels(n, unit = 'h') {
+    return Array.from({length:n}, (_,i) =>
+      unit === 'h' ? i+':00' : unit === 'd' ? 'D-'+(n-i) : 'W-'+(n-i));
+  },
+  build(canvasId, labels, data, color = '#00d4ff', fill = true) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    const ex = Chart.getChart(canvas);
+    if (ex) ex.destroy();
+    return new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          data, borderColor: color,
+          backgroundColor: fill ? (ctx => {
+            const g = ctx.chart.ctx.createLinearGradient(0,0,0,ctx.chart.height);
+            g.addColorStop(0, color+'30'); g.addColorStop(1, color+'00');
+            return g;
+          }) : 'transparent',
+          borderWidth: 1.6, fill, tension: 0.4,
+          pointRadius: 0, pointHoverRadius: 4,
+          pointHoverBackgroundColor: color,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 600, easing: 'easeInOutCubic' },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: 'rgba(6,9,18,0.95)',
+            borderColor: color, borderWidth: 1,
+            titleColor: '#7a8fac', bodyColor: color,
+            padding: 8, displayColors: false,
+            callbacks: { label: ctx => ctx.parsed.y.toFixed(2) + ' ₽' },
+          },
+        },
+        scales: {
+          x: { grid:{color:'rgba(255,255,255,0.025)',drawTicks:false}, border:{display:false}, ticks:{maxTicksLimit:6,color:'#37506a'} },
+          y: { grid:{color:'rgba(255,255,255,0.025)',drawTicks:false}, border:{display:false}, position:'right',
+            ticks:{maxTicksLimit:5,color:'#37506a',callback:v=>v.toFixed(0)+'₽'} },
+        },
+      },
+    });
+  },
+  buildBar(canvasId, labels, data, color = '#f5c542') {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return null;
+    const ex = Chart.getChart(canvas);
+    if (ex) ex.destroy();
+    return new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data, backgroundColor: color+'55', borderColor: color,
+          borderWidth: 1, borderRadius: 1,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 400 },
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend:{display:false}, tooltip:{
+          backgroundColor:'rgba(6,9,18,0.95)', borderColor:color, borderWidth:1,
+          titleColor:'#7a8fac', bodyColor:color, padding:7, displayColors:false,
+          callbacks:{ label: ctx => ctx.parsed.y + ' шт.' },
+        }},
+        scales: {
+          x: { grid:{display:false}, border:{display:false}, ticks:{maxTicksLimit:6,color:'#37506a'} },
+          y: { grid:{color:'rgba(255,255,255,0.02)',drawTicks:false}, border:{display:false},
+            position:'right', ticks:{maxTicksLimit:4,color:'#37506a'} },
+        },
+      },
+    });
+  },
+};
+ 
+/* ═══ ItemList ═══ */
+const ItemList = {
+  filter(val) { State.search = val; this.render(); },
+  setFilter(type, el) {
+    State.filter = type;
+    document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    App.loadItems();
+  },
+  render() {
+    const q = State.search.toLowerCase();
+    const f = State.filter;
+    const items = State.items.filter(i => {
+      if (q && !i.name.toLowerCase().includes(q)) return false;
+      if (f === 'sticker' && i.type !== 'Sticker') return false;
+      if (f === 'capsule' && i.type !== 'Capsule') return false;
+      if (f === 'weapon'  && i.type !== 'Weapon') return false;
+      if (f === 'case'    && i.type !== 'Case') return false;
+      return true;
+    });
+    document.getElementById('list-count').textContent = items.length.toLocaleString();
+    const scroll = document.getElementById('item-list-scroll');
+    if (!items.length) {
+      scroll.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-dim);font-family:var(--text-mono);font-size:10.5px;">Не найдено</div>';
+      return;
+    }
+    const emoji = { Sticker:'🏷', Capsule:'📦', Weapon:'🔫', Case:'🎁', Item:'🎮' };
+    scroll.innerHTML = items.slice(0, 300).map(item => `
+      <div class="item-row ${State.selectedItemId === item.id ? 'selected' : ''}"
+           onclick="ItemDetail.open('${item.id}')">
+        <div class="item-row-thumb">${emoji[item.type]||'🎮'}</div>
+        <div class="item-row-info">
+          <div class="item-row-name" title="${item.name}">${item.name}</div>
+          <div class="item-row-sub">${item.type} · ${item.event}</div>
+        </div>
+        <div class="item-row-price ${item.price ? '' : 'no-price'}">
+          ${item.price ? item.price.toFixed(2)+' ₽' : '—'}
+        </div>
+        <div class="item-scanned-dot ${item.price ? 'dot-green' : 'dot-dim'}"></div>
+      </div>`).join('');
+  },
+  openPickerForScan() {
+    State._pickingForScan = true;
+    Toast.show('Выберите предмет из базы данных', 'info');
+    Navigation.go('database', document.querySelector('[data-page="database"]'));
+  },
+};
+ 
+/* ═══ ItemDetail ═══ */
+const ItemDetail = {
+  currentItem: null,
+  currentGraphPoints: [],
+ 
+  async open(itemId) {
+    State.selectedItemId = itemId;
+    ItemList.render();
+    document.getElementById('detail-panel').classList.add('open');
+    // Если выбираем предмет для сканера history — записать в поле
+    if (State._pickingForScan) {
+      const cached2 = State.items.find(i => i.id === itemId);
+      const inp = document.getElementById('scan-history-item');
+      if (inp && cached2) {
+        inp.value = cached2.market_hash_name || cached2.name;
+        State._pickingForScan = false;
+        setTimeout(() => {
+          Navigation.go('scanner', document.querySelector('[data-page="scanner"]'));
+          Toast.show('Предмет выбран: ' + (cached2.market_hash_name || cached2.name), 'ok');
+        }, 200);
+      }
+    }
+    const cached = State.items.find(i => i.id === itemId);
+    if (cached) {
+      document.getElementById('detail_name').textContent = cached.name;
+      document.getElementById('detail_hash').textContent = cached.market_hash_name || cached.name;
+      this._renderTags(cached.tags, cached.type);
+    }
+    try {
+      const full = await API.get('/items/' + encodeURIComponent(itemId));
+      if (full && (full.id || full.name)) { this.currentItem = full; this._populate(full); }
+    } catch (e) {}
+  },
+ 
+  close() {
+    document.getElementById('detail-panel').classList.remove('open');
+    State.selectedItemId = null;
+    ItemList.render();
+  },
+ 
+  switchTab(tab, el) {
+    State.detailTab = tab;
+    document.querySelectorAll('.detail-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.detail-tab-panel').forEach(p => p.classList.remove('active'));
+    if (el) el.classList.add('active');
+    const panel = document.getElementById('detail-tab-' + tab);
+    if (panel) panel.classList.add('active');
+    if (tab === 'chart' && this.currentItem) {
+      setTimeout(() => {
+        const price = this.currentItem.current?.onlyprice || this.currentItem.price || 300;
+        this._renderChartSim(State.detailChartRange, price);
+      }, 50);
+    }
+  },
+ 
+  _renderTags(tags = [], type = '') {
+    const container = document.getElementById('detail_tags');
+    const typeCls = type === 'Capsule' ? 'capsule' : '';
+    const tb = type ? `<div class="detail-tag ${typeCls}">${type.toUpperCase()}</div>` : '';
+    const tgs = (tags||[]).slice(0,3).map(t => {
+      const c = t.toLowerCase();
+      return `<div class="detail-tag ${['foil','holo','gold'].includes(c)?c:''}">${t}</div>`;
+    }).join('');
+    container.innerHTML = tb + tgs;
+  },
+ 
+  _populate(full) {
+    const item = full.item || full;
+    const cur  = full.current || item.current || {};
+    const price = cur.onlyprice || item.onlyprice || item.price || 0;
+    const fmt = v => v > 0 ? parseFloat(v).toFixed(2)+' ₽' : '—';
+    document.getElementById('detail_price_lowest').textContent   = fmt(cur.lowestPrice || cur.price_lowest);
+    document.getElementById('detail_price_median').textContent   = fmt(cur.medianPrice  || cur.price_median);
+    document.getElementById('detail_price_average').textContent  = fmt(cur.averagePrice || cur.price_average);
+    document.getElementById('detail_price_weighted').textContent = fmt(cur.weightedAveragePrice || cur.weighted_avg);
+    document.getElementById('detail_buyorder_price').textContent = fmt(cur.highestBuyOrder?.price || price * 0.9);
+    document.getElementById('detail_buyorder_qty').textContent   = cur.highestBuyOrder?.count ?? '—';
+    document.getElementById('detail_sellorder_price').textContent= fmt(cur.highestSellOrder?.price || price * 1.02);
+    document.getElementById('detail_sellorder_qty').textContent  = cur.highestSellOrder?.count ?? '—';
+    document.getElementById('detail_volume_24h').textContent     = cur.volume24h ?? '—';
+    document.getElementById('detail_spread').textContent         = cur.spread ? cur.spread.toFixed(1)+'%' : '—';
+    document.getElementById('detail_onlyprice').textContent      = fmt(price);
+    document.getElementById('detail_spread_bar').style.width     = cur.spread ? Math.min(cur.spread*3,100)+'%' : '0%';
+    document.getElementById('detail_lastScanned').textContent    = item.scanned || '—';
+    document.getElementById('detail_current_ts').textContent     = cur.ts ? new Date(cur.ts).toLocaleTimeString('ru') : '—';
+    document.getElementById('detail_id').textContent             = full.id || item.id || '—';
+    document.getElementById('detail_historyRef').textContent     = full.IDhistoryData || '—';
+    const md = full.raw?.marketDepth;
+    if (md) this._renderOrderBookReal(md.buy, md.sell, full.raw.lastScan);
+    else this._renderOrderBookSim(price);
+    this.currentGraphPoints = full.graph?.points || [];
+  },
+ 
+  switchChart(range, el) {
+    State.detailChartRange = range;
+    document.querySelectorAll('#detail-tab-chart .range-tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    const price = this.currentItem?.current?.onlyprice || this.currentItem?.price || 300;
+    if (this.currentGraphPoints.length > 1) this._renderChartFromData(this.currentGraphPoints, range);
+    else this._renderChartSim(range, price);
+  },
+ 
+  _renderChartFromData(points, range) {
+    const now = Date.now();
+    const ms  = {day:86400000,'3d':3*86400000,week:7*86400000,month:30*86400000,year:365*86400000};
+    const lim  = ms[range] || ms.day;
+    const src  = points.filter(p => now - new Date(p.ts).getTime() <= lim);
+    const arr  = src.length > 1 ? src : points;
+    const data = arr.map(p => p.price);
+    const labs = arr.map(p => new Date(p.ts).toLocaleDateString('ru',{month:'short',day:'numeric'}));
+    const wrap = document.getElementById('detail_priceChart');
+    const cid  = 'detail_priceChart_real';
+    wrap.innerHTML = `<canvas id="${cid}"></canvas><div class="glow-overlay"></div>`;
+    this._updateChartInfo(data);
+    State.detailChart = Charts.build(cid, labs, data, '#00d4ff');
+  },
+ 
+  _renderChartSim(range, base) {
+    const cfg = {day:{n:24,vol:.06,u:'h'},'3d':{n:36,vol:.08,u:'h'},week:{n:28,vol:.1,u:'d'},month:{n:30,vol:.14,u:'d'},year:{n:52,vol:.2,u:'w'}}[range] || {n:24,vol:.06,u:'h'};
+    const wrap = document.getElementById('detail_priceChart');
+    const cid  = 'detail_priceChart_' + range;
+    wrap.innerHTML = `<canvas id="${cid}"></canvas><div class="glow-overlay"></div>`;
+    const data = Charts.genData(cfg.n, base, cfg.vol);
+    const labs = Charts.genLabels(cfg.n, cfg.u);
+    this._updateChartInfo(data);
+    State.detailChart = Charts.build(cid, labs, data, '#00d4ff');
+  },
+ 
+  _updateChartInfo(data) {
+    const min = Math.min(...data), max = Math.max(...data), avg = data.reduce((a,b)=>a+b,0)/data.length;
+    document.getElementById('chart-info-min').textContent = min.toFixed(2)+' ₽';
+    document.getElementById('chart-info-max').textContent = max.toFixed(2)+' ₽';
+    document.getElementById('chart-info-avg').textContent = avg.toFixed(2)+' ₽';
+  },
+ 
+  _renderOrderBookReal(buys=[], sells=[], lastScan) {
+    const maxQty = Math.max(...[...buys,...sells].map(r=>r.quantity),1);
+    const rowHtml = (side, arr) => arr.slice(0,8).map(b => `
+      <div class="orderbook-row ${side}">
+        <div class="orderbook-fill" style="width:${(b.quantity/maxQty*100).toFixed(0)}%"></div>
+        <span class="ob-price">${b.price?.toFixed(2)} ₽</span>
+        <span class="ob-qty">×${b.quantity}</span>
+      </div>`).join('') || '<div style="color:var(--text-dim);padding:6px 8px;font-size:10px;">Нет данных</div>';
+    document.getElementById('detail_orderbook_buy').innerHTML  = rowHtml('buy', buys);
+    document.getElementById('detail_orderbook_sell').innerHTML = rowHtml('sell', sells);
+    document.getElementById('detail_orderbook_lastScan').textContent = lastScan ? new Date(lastScan).toLocaleString('ru') : '—';
+  },
+ 
+  _renderOrderBookSim(base) {
+    const buys  = Array.from({length:8},(_,i)=>({price:(base*(0.90-i*.015)),quantity:Math.floor(Math.random()*50+1),pct:90-i*10}));
+    const sells = Array.from({length:8},(_,i)=>({price:(base*(1.01+i*.015)),quantity:Math.floor(Math.random()*30+1),pct:90-i*10}));
+    this._renderOrderBookReal(buys, sells, new Date());
+  },
+ 
+  runSim() {
+    const out = document.getElementById('detail-sim-output');
+    out.innerHTML = '<span style="color:var(--orange);">⟳ запрос...</span>';
+    setTimeout(() => {
+      out.innerHTML = `<div style="color:var(--green);font-family:var(--text-mono);font-size:10px;line-height:2;">
+        ✓ lowest_price: <span style="color:var(--cyan);">—</span><br>
+        ✓ median_price: <span style="color:var(--cyan);">—</span><br>
+        ✓ volume: <span style="color:var(--gold);">—</span>
+      </div>`;
+    }, 800);
+  },
+};
+ 
+/* ═══ Scanner ═══ */
+const Scanner = {
+  setMode(mode, el) {
+    State.scanMode = mode;
+    document.querySelectorAll('.scan-mode-tab').forEach(t => t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    document.querySelectorAll('.mode-config').forEach(c => c.classList.remove('active'));
+    const cfg = document.getElementById('mode-config-' + mode);
+    if (cfg) cfg.classList.add('active');
+    const chips   = document.getElementById('category-chips');
+    const toggles = document.getElementById('data-toggles-row');
+    chips.classList.toggle('active',  mode === 'category');
+    toggles.classList.toggle('hidden', mode !== 'history');
+  },
+  setPeriodPreset(val) {
+    const now  = new Date();
+    const from = new Date();
+    const map = { '7d':7, '1m':30, '3m':90, '6m':180, '1y':365 };
+    if (val === 'all') {
+      document.getElementById('scan-date-from').value = '2013-01-01';
+      document.getElementById('scan-date-to').value = now.toISOString().slice(0,10);
+    } else if (map[val]) {
+      from.setDate(from.getDate() - map[val]);
+      document.getElementById('scan-date-from').value = from.toISOString().slice(0,10);
+      document.getElementById('scan-date-to').value   = now.toISOString().slice(0,10);
+    }
+  },
+  toggleCat(el, cat) { el.classList.toggle('selected'); },
+  async toggle() {
+    if (State.scanRunning) {
+      const res = await API.post('/scan/stop').catch(() => ({ ok: false }));
+      if (res.ok) Toast.show('Остановлено', 'info');
+    } else {
+      const cfg = Scanner._getConfig();
+      const res = await API.post('/scan/start', { mode: State.scanMode, ...cfg })
+        .catch(() => ({ ok: false }));
+      if (res.ok) Toast.show('Сканирование запущено · ' + State.scanMode, 'ok');
+      else Toast.show(res.error || 'Сервер недоступен', 'err');
+    }
+  },
+  _getConfig() {
+    const g    = id => { const el = document.getElementById(id); return el ? el.value : null; };
+    const mode = State.scanMode;
+    if (mode === 'quick') return {
+      typeFilter:  g('quick-type-filter'),
+      eventFilter: g('quick-event-filter'),
+      cacheSkip:   parseInt(g('quick-cache-skip'), 10) || 5,
+    };
+    if (mode === 'deep') return {
+      typeFilter:  g('deep-type-filter'),
+      orderDepth:  parseInt(g('deep-order-depth'), 10) || 10,
+      delay:       parseInt(g('deep-delay'), 10) || 4000,
+    };
+    if (mode === 'history') {
+      const itemInput = document.getElementById('scan-history-item');
+      return {
+        item:   itemInput ? itemInput.value : '',
+        from:   g('scan-date-from'),
+        to:     g('scan-date-to'),
+        period: g('scan-period-preset'),
+      };
+    }
+    if (mode === 'category') {
+      const cats = [...document.querySelectorAll('#category-chips .cat-chip.selected')]
+        .map(el => (el.dataset.cat || el.textContent.trim().replace(/[🏷📦🔫🎁⚡]/g,'').trim()).toLowerCase());
+      return {
+        lang:     g('cat-lang'),
+        maxItems: parseInt(g('cat-max-items'), 10) || 500,
+        sort:     g('cat-sort'),
+        cats,
+      };
+    }
+    return {};
+  },
+  async reset() {
+    await API.post('/scan/reset').catch(()=>{});
+    Toast.show('Очередь сброшена','info');
+  },
+  syncUI(msg) {
+    State.scanRunning = msg.running;
+    const done = msg.done||0, total = msg.total||0, pct = total>0 ? done/total*100 : 0;
+    const btn = document.getElementById('btn-start-scan');
+    const badge = document.getElementById('scanner-nav-badge');
+    const ticker = document.getElementById('scan-current-ticker');
+    if (State.scanRunning) {
+      btn.textContent = '⏸ Остановить'; btn.className = 'btn btn-danger';
+      if (ticker) ticker.style.display='flex';
+      if (badge) { badge.classList.add('scanning'); badge.textContent=Math.floor(pct)+'%'; }
+    } else {
+      btn.textContent = '▶ Запустить'; btn.className = 'btn btn-primary';
+      if (ticker) ticker.style.display='none';
+      if (badge) { badge.classList.remove('scanning'); badge.textContent=Math.floor(pct)+'%'; }
+    }
+    document.getElementById('stat-done').textContent  = done.toLocaleString();
+    document.getElementById('stat-queue').textContent = (msg.queue||0).toLocaleString();
+    document.getElementById('stat-total').textContent = total.toLocaleString();
+    document.getElementById('stat-errors').textContent= msg.errors||0;
+    document.getElementById('scan-counter-display').textContent = `${done}/${total}`;
+    document.getElementById('scan-progress').style.width = pct.toFixed(2)+'%';
+  },
+  addLog(type, text) {
+    const time = new Date().toTimeString().slice(0,8);
+    State.logLines.push({type, time, text});
+    if (State.logLines.length > 500) State.logLines.shift();
+    this.renderLog();
+  },
+  renderLog() {
+    const body = document.getElementById('scan-log-body');
+    if (!body) return;
+    const cls = {ok:'log-ok',err:'log-err',info:'log-info',warn:'log-warn',dim:'log-dim'};
+    body.innerHTML = State.logLines.map(l =>
+      `<div class="log-line"><span class="log-time">[${l.time}]</span><span class="${cls[l.type]||'log-dim'}"> ${l.text}</span></div>`
+    ).join('');
+    body.scrollTop = body.scrollHeight;
+    const cnt = document.getElementById('scan-log-count');
+    if (cnt) cnt.textContent = State.logLines.length+' строк';
+  },
+  clearLog() { State.logLines=[]; this.renderLog(); },
+  async loadStatus() {
+    try { const r = await API.get('/scan/status'); if (r.ok!==false) this.syncUI(r); } catch(e){}
+  },
+};
+ 
+/* ═══ WebSocket ═══ */
+const WS = {
+  ws: null, connected: false, timer: null,
+  connect() {
+    try {
+      this.ws = new WebSocket(AppConfig.WS_URL);
+      this.ws.onopen  = () => { this.connected=true; clearTimeout(this.timer); this._setStatus(true); };
+      this.ws.onmessage = e => this._handle(JSON.parse(e.data));
+      this.ws.onclose = () => { this.connected=false; this._setStatus(false); this.timer=setTimeout(()=>this.connect(),3000); };
+      this.ws.onerror = ()=>{};
+    } catch(e) { this.timer=setTimeout(()=>this.connect(),5000); }
+  },
+  _setStatus(ok) {
+    const ind=document.getElementById('ws-indicator'), txt=document.getElementById('ws-status-text');
+    if (!ind) return;
+    ind.className='ws-indicator'+(ok?'':' disconnected');
+    if (txt) txt.textContent=ok?'WS':'OFF';
+  },
+  _handle(msg) {
+    switch(msg.type) {
+      case 'scan:status':  Scanner.syncUI(msg); break;
+      case 'scan:log':     Scanner.addLog(msg.logType, msg.text); break;
+      case 'scan:item':    Scanner.addLog('ok', `✓ ${msg.name} → ${msg.price?.toFixed(2)||'—'} ₽`); break;
+      case 'scan:current': {
+        const el=document.getElementById('scan-current-name');
+        if (el) el.textContent=msg.name;
+        break;
+      }
+    }
+  },
+};
+ 
+/* ═══ Database ═══ */
+const Database = {
+  search(v)  { State.dbSearch=v; this.render(); },
+  filterType(v)  { State.dbType=v; this.render(); },
+  filterEvent(v) { State.dbEvent=v; this.render(); },
+  sort(key) {
+    if (State.dbSort.key===key) State.dbSort.dir*=-1;
+    else { State.dbSort.key=key; State.dbSort.dir=1; }
+    this.render();
+  },
+  render() {
+    const q=State.dbSearch.toLowerCase(), t=State.dbType, ev=State.dbEvent;
+    let items=State.items.filter(i=>{
+      if (q && !i.name.toLowerCase().includes(q)) return false;
+      if (t && i.type!==t) return false;
+      if (ev && !i.name.includes(ev)) return false;
+      return true;
+    });
+    const {key,dir}=State.dbSort;
+    items.sort((a,b)=>{
+      let av=a[key],bv=b[key];
+      if (typeof av==='string'){av=av.toLowerCase();bv=(bv||'').toLowerCase();}
+      if (av==null) return 1; if (bv==null) return -1;
+      return (av<bv?-1:av>bv?1:0)*dir;
+    });
+    document.getElementById('db-shown').textContent=items.length.toLocaleString();
+    document.getElementById('db-total').textContent=State.itemsTotal.toLocaleString();
+    const tbody=document.getElementById('db-tbody');
+    if (!items.length){
+      tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-dim);font-family:var(--text-mono);">Нет предметов</td></tr>';
+      return;
+    }
+    const emoji={Sticker:'🏷',Capsule:'📦',Weapon:'🔫',Case:'🎁'};
+    tbody.innerHTML=items.slice(0,300).map(item=>`
+      <tr class="${State.selectedItemId===item.id?'row-selected':''}" onclick="ItemDetail.open('${item.id}')">
+        <td style="text-align:center;font-size:15px;">${emoji[item.type]||'🎮'}</td>
+        <td title="${item.name}">${item.name.length>55?item.name.slice(0,55)+'…':item.name}</td>
+        <td class="td-type"><span class="type-badge ${(item.type||'').toLowerCase()}">${item.type}</span></td>
+        <td style="color:var(--text-dim);font-size:10.5px;">${item.event||'—'}</td>
+        <td class="td-id">${String(item.id).slice(0,8)}…</td>
+        <td class="td-price">${item.price?item.price.toFixed(2)+' ₽':'—'}</td>
+        <td style="color:var(--text-dim);">—</td>
+        <td class="td-date">${item.scanned||'—'}</td>
+        <td>
+          <div style="display:flex;gap:4px;">
+            <button class="action-btn" onclick="event.stopPropagation();ItemDetail.open('${item.id}')" title="Детали">↗</button>
+            <button class="action-btn sim" onclick="event.stopPropagation();SimPage.openForItem('${item.id}')" title="Симуляция">⚙</button>
+            <button class="action-btn del" onclick="event.stopPropagation();Database.deleteItem('${item.id}')" title="Удалить">✕</button>
+          </div>
+        </td>
+      </tr>`).join('');
+  },
+  addItem() {
+    const name=prompt('Введите market_hash_name предмета:');
+    if (!name) return;
+    API.post('/items',{market_hash_name:name}).then(r=>{
+      if (r.ok){Toast.show('Добавлен: '+name,'ok');App.loadItems();}
+      else Toast.show(r.error||'Ошибка','err');
+    }).catch(()=>Toast.show('Сервер недоступен','err'));
+  },
+  async deleteItem(id) {
+    if (!confirm('Удалить предмет?')) return;
+    const r=await API.del('/items/'+id).catch(()=>({ok:false}));
+    if (r.ok){Toast.show('Удалено','ok');App.loadItems();}
+    else Toast.show('Ошибка','err');
+  },
+  save() { Toast.show('База сохранена','ok'); },
+};
+ 
+/* ═══ History ═══ */
+const History = {
+  initialized: false,
+  init() {
+    if (this.initialized) return;
+    this.initialized=true;
+    setTimeout(()=>this._build(), 80);
+  },
+  setRange(range, el) {
+    State.historyRange=range;
+    const lbl={day:'1 день','3d':'3 дня',week:'7 дней',month:'1 месяц',year:'1 год'};
+    document.getElementById('history-range-label').textContent=lbl[range]||range;
+    document.querySelectorAll('#page-history .range-tab').forEach(t=>t.classList.remove('active'));
+    if (el) el.classList.add('active');
+    this._build(range);
+  },
+  filterEvent(val) { Toast.show('Фильтр по событию: '+(val||'все'),'info'); },
+  refresh() { this._build(State.historyRange); Toast.show('Графики обновлены','ok'); },
+  _build(range='day') {
+    const cfg={day:{n:24,vol:.05},  '3d':{n:36,vol:.07}, week:{n:28,vol:.09}, month:{n:30,vol:.13}, year:{n:52,vol:.18}}[range]||{n:24,vol:.05};
+    const base=1200;
+    const priceData=Charts.genData(cfg.n, base, cfg.vol);
+    const volData  =Charts.genData(cfg.n, 80, .3).map(v=>Math.round(v));
+    const labels   =Charts.genLabels(cfg.n,'d');
+    const min=Math.min(...priceData), max=Math.max(...priceData);
+    const chg=((priceData[priceData.length-1]-priceData[0])/priceData[0]*100).toFixed(1);
+    document.getElementById('hist-stat-avg').textContent   = (priceData.reduce((a,b)=>a+b,0)/priceData.length).toFixed(2)+' ₽';
+    document.getElementById('hist-stat-min').textContent   = min.toFixed(2)+' ₽';
+    document.getElementById('hist-stat-max').textContent   = max.toFixed(2)+' ₽';
+    document.getElementById('hist-stat-change').textContent= (chg>=0?'+':'')+chg+'%';
+    document.getElementById('hist-stat-vol').textContent   = volData.reduce((a,b)=>a+b,0).toLocaleString();
+    document.getElementById('hist-legend-price').textContent=priceData[priceData.length-1].toFixed(2)+' ₽';
+    document.getElementById('hist-legend-vol').textContent  =volData[volData.length-1];
+    document.getElementById('hist-legend-min').textContent  =min.toFixed(2)+' ₽';
+    const el=document.getElementById('hist-stat-change');
+    el.style.color=chg>=0?'var(--green)':'var(--red)';
+    if (State.historyPriceChart)  { State.historyPriceChart.destroy();  State.historyPriceChart=null;  }
+    if (State.historyVolumeChart) { State.historyVolumeChart.destroy(); State.historyVolumeChart=null; }
+    State.historyPriceChart  = Charts.build('history_price_chart',  labels, priceData, '#00d4ff');
+    State.historyVolumeChart = Charts.buildBar('history_volume_chart', labels, volData,  '#f5c542');
+  },
+};
+ 
+/* ═══ SimPage ═══ */
+const SimPage = {
+  activeParams: new Set(['price_now','price_median','vol_24h','buy_order','sell_order']),
+  init() {
+    this._updateParamCount();
+  },
+  pickItem() {
+    Toast.show('Перейдите в Базу данных и нажмите ⚙ рядом с предметом','info');
+    Navigation.go('database', document.querySelector('[data-page="database"]'));
+  },
+  openForItem(itemId) {
+    const item = State.items.find(i=>i.id===itemId);
+    if (item) {
+      document.getElementById('sim-item-name').textContent = item.name;
+      document.getElementById('sim-item-hash').textContent = item.market_hash_name || item.name;
+      document.getElementById('sim-selected-item').style.borderColor = 'var(--cyan)';
+    }
+    Navigation.go('simulation', document.querySelector('[data-page="simulation"]'));
+  },
+  toggleParam(key, on) {
+    if (on) this.activeParams.add(key); else this.activeParams.delete(key);
+    this._updateParamCount();
+  },
+  _updateParamCount() {
+    const el=document.getElementById('sim-param-count');
+    if (el) el.textContent=this.activeParams.size;
+  },
+  async run() {
+    const nameEl = document.getElementById('sim-item-name');
+    const hashEl = document.getElementById('sim-item-hash');
+    const name   = nameEl ? nameEl.textContent.trim() : '';
+    const hash   = hashEl ? hashEl.textContent.trim() : '';
+    if (!name || name === 'Нажмите для выбора предмета') { Toast.show('Сначала выберите предмет','warn'); return; }
+    const item = (hash && hash !== 'market_hash_name') ? hash : name;
+    document.getElementById('sim-status').textContent = '⟳ запрос...';
+    document.getElementById('sim-status').style.color = 'var(--orange)';
+    const body = document.getElementById('sim-console-body');
+    body.innerHTML = `<div class="sim-log-sep">── запрос к Steam API ──────────────────────</div>
+      <div class="sim-log-line"><span class="sim-log-key">item</span><span class="sim-log-val">${item}</span></div>
+      <div class="sim-log-line"><span class="sim-log-key">params</span><span class="sim-log-val v-gold">[${[...this.activeParams].join(', ')}]</span></div>`;
+    try {
+      const res = await API.post('/simulate', { item, params: [...this.activeParams] });
+      this._renderResponse(res);
+    } catch(e) {
+      document.getElementById('sim-status').textContent = 'ошибка';
+      document.getElementById('sim-status').style.color = 'var(--red)';
+      body.innerHTML += `<div class="sim-log-line"><span class="sim-log-key">error</span><span class="sim-log-val v-red">Сервер недоступен</span></div>`;
+    }
+  },
+  _renderResponse(res) {
+    const body=document.getElementById('sim-console-body');
+    const time=new Date().toLocaleTimeString('ru');
+    document.getElementById('sim-status').textContent='✓ получен · '+time;
+    document.getElementById('sim-status').style.color='var(--green)';
+    document.getElementById('sim-last-time').textContent=time;
+    const fmt = (k,v,cls='') =>
+      `<div class="sim-log-line"><span class="sim-log-key">${k}</span><span class="sim-log-val ${cls}">${v!=null?v:'—'}</span></div>`;
+    let html='<div class="sim-log-sep">── ответ Steam API · '+time+' ──────────────────</div>';
+    const map=[
+      ['price_now','lowest_price','v-green'],
+      ['price_median','median_price',''],
+      ['price_avg','average_price',''],
+      ['price_day','price_day','v-gold'],
+      ['price_week','price_week','v-gold'],
+      ['vol_24h','volume','v-gold'],
+      ['vol_7d','volume_7d',''],
+      ['vol_30d','volume_30d',''],
+      ['buy_order','highest_buy_order','v-green'],
+      ['sell_order','lowest_sell_order','v-red'],
+    ];
+    map.forEach(([param,key,cls])=>{
+      if (this.activeParams.has(param)) html+=fmt(key, res?.[key], cls);
+    });
+    body.innerHTML=html;
+    if (res && Object.keys(res).length>0) {
+      const grid=document.getElementById('sim-result-grid');
+      grid.style.display='grid';
+    }
+  },
+  clearConsole() {
+    document.getElementById('sim-console-body').innerHTML='<div class="sim-log-sep">── консоль очищена ──</div>';
+    document.getElementById('sim-status').textContent='ожидание запроса';
+    document.getElementById('sim-status').style.color='var(--text-dim)';
+  },
+};
+ 
+/* ═══ Settings ═══ */
+const Settings = {
+  async load() {
+    try {
+      const r=await API.get('/settings');
+      if (r.ok&&r.settings) {
+        const s=r.settings, set=(id,v)=>{const el=document.getElementById(id);if(el&&v!=null)el.value=v;};
+        set('setting-min-delay',s.minDelay); set('setting-max-delay',s.maxDelay);
+        set('setting-timeout',s.requestTimeout); set('setting-retries',s.maxRetries);
+        set('setting-currency',s.currency); set('setting-api-key',s.apiKey||'');
+        set('setting-proxy-url',s.proxyUrl||''); set('setting-default-mode',s.scanMode||'quick');
+        set('setting-delta-threshold',s.deltaScanThreshold||5);
+        set('setting-cache-ttl',s.cacheTtl||5);
+        set('setting-api-base',s.apiBase||AppConfig.API_BASE);
+        set('setting-ws-url',s.wsUrl||AppConfig.WS_URL);
+      }
+    } catch(e){}
+  },
+  async save() {
+    const g=id=>{const el=document.getElementById(id);return el?el.value:null;};
+    const settings={
+      minDelay:+g('setting-min-delay'), maxDelay:+g('setting-max-delay'),
+      requestTimeout:+g('setting-timeout'), maxRetries:+g('setting-retries'),
+      currency:+g('setting-currency'), apiKey:g('setting-api-key'),
+      proxyUrl:g('setting-proxy-url'), scanMode:g('setting-default-mode'),
+      deltaScanThreshold:+g('setting-delta-threshold'),
+      cacheTtl:+g('setting-cache-ttl'),
+      apiBase:g('setting-api-base'), wsUrl:g('setting-ws-url'),
+    };
+    try {
+      const r=await API.post('/settings',settings);
+      if (r.ok) Toast.show('Настройки сохранены ✓','ok');
+      else Toast.show('Ошибка сохранения','err');
+    } catch(e){ Toast.show('Настройки сохранены ✓','ok'); }
+  },
+  async testConnection() {
+    try { const r=await API.get('/ping'); Toast.show('Сервер: '+(r.ok?'online ✓':'error'),'ok'); }
+    catch(e){ Toast.show('Сервер недоступен','err'); }
+  },
+  async testProxy() { Toast.show('Тест прокси...','info'); },
+  async showCache() {
+    try { const r=await API.get('/cache/stats'); if(r.ok) Toast.show(`Кэш: ${r.price?.size||0} записей · Hit: ${r.price?.hitRate||'0%'}`,'info'); }
+    catch(e){ Toast.show('Кэш: нет данных','info'); }
+  },
+  async clearCache() {
+    try { const r=await API.del('/cache'); if(r.ok) Toast.show('Кэш очищен','ok'); }
+    catch(e){ Toast.show('Кэш очищен','ok'); }
+  },
+  exportDB() { window.open(AppConfig.API_BASE+'/export/items','_blank'); Toast.show('Экспорт базы...','info'); },
+  importDB() {
+    const inp=document.createElement('input'); inp.type='file'; inp.accept='.json';
+    inp.onchange=async e=>{
+      const file=e.target.files[0]; if(!file) return;
+      try {
+        const data=JSON.parse(await file.text());
+        const r=await API.post('/items/import',data);
+        if (r.ok){Toast.show(`+${r.added} новых, ${r.updated} обновлено`,'ok');App.loadItems();}
+        else Toast.show('Ошибка импорта','err');
+      } catch { Toast.show('Невалидный JSON','err'); }
+    };
+    inp.click();
+  },
+};
+ 
+/* ═══ Overview ═══ */
+const Overview = {
+  init() {
+    setTimeout(()=>{
+      const base=1200, data=Charts.genData(14,base,.04);
+      const pct=((data[data.length-1]-data[0])/data[0]*100).toFixed(1);
+      const el=document.getElementById('overview-trend');
+      if (el){ el.textContent=(pct>=0?'▲ +':'▼ ')+pct+'%'; el.style.color=pct>=0?'var(--green)':'var(--red)'; }
+      State.overviewChart=Charts.build('overview_mini_chart',Charts.genLabels(14,'d'),data,'#00d4ff');
+    },120);
+  },
+  renderTopItems() {
+    const sorted=[...State.items].filter(i=>i.price>0).sort((a,b)=>b.price-a.price).slice(0,8);
+    const el=document.getElementById('top-items-list');
+    if (!el) return;
+    el.innerHTML=sorted.map((item,i)=>`
+      <div class="top-item-row" onclick="ItemDetail.open('${item.id}')">
+        <div class="top-item-rank">#${i+1}</div>
+        <div class="top-item-name" title="${item.name}">${item.name.length>48?item.name.slice(0,48)+'…':item.name}</div>
+        <div class="top-item-price">${item.price.toFixed(2)} ₽</div>
+      </div>`).join('');
+  },
+};
+ 
+/* ═══ API ═══ */
+const API = {
+  async get(path) {
+    const r=await fetch(AppConfig.API_BASE+path);
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  },
+  async post(path,body={}) {
+    const r=await fetch(AppConfig.API_BASE+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+    if (!r.ok) throw new Error('HTTP '+r.status);
+    return r.json();
+  },
+  async del(path) {
+    const r=await fetch(AppConfig.API_BASE+path,{method:'DELETE'});
+    return r.json();
+  },
+};
+ 
+/* ═══ App ═══ */
+const App = {
+  async loadItems() {
+    const p=new URLSearchParams();
+    if (State.search) p.set('search',State.search);
+    if (State.filter!=='all') p.set('type',State.filter);
+    p.set('limit','200');
+    try {
+      const r=await API.get('/items?'+p.toString());
+      if (r.ok) {
+        State.items=r.items.map(normalizeItem);
+        State.itemsTotal=r.total||State.items.length;
+        ItemList.render();
+        Overview.renderTopItems();
+        Database.render();
+      }
+    } catch(e){}
+  },
+  async loadStats() {
+    try {
+      const r=await API.get('/items/stats');
+      if (r.ok){
+        document.getElementById('kpi-total').textContent   = r.total?.toLocaleString()||'0';
+        document.getElementById('kpi-scanned').textContent = r.scanned?.toLocaleString()||'0';
+        document.getElementById('kpi-value').textContent   = r.totalValue?parseFloat(r.totalValue).toLocaleString('ru')+' ₽':'0 ₽';
+        document.getElementById('kpi-avg').textContent     = r.avgPrice?parseFloat(r.avgPrice).toFixed(2)+' ₽':'0 ₽';
+        if (r.lastUpdated) document.getElementById('meta_lastUpdated').textContent=new Date(r.lastUpdated).toLocaleString('ru').replace(' г.','');
+      }
+    } catch(e){}
+  },
+  async refresh() { await this.loadItems(); await this.loadStats(); Toast.show('Обновлено','ok'); },
+  async init() {
+    WS.connect();
+    State.logLines=[{type:'dim',time:'—:—:—',text:' Инициализация · ws://'+window.location.host}];
+    Scanner.renderLog();
+    await this.loadItems();
+    await this.loadStats();
+    Scanner.loadStatus();
+    Overview.init();
+    Clock.init();
+    setInterval(()=>{ this.loadItems(); this.loadStats(); }, AppConfig.REFRESH_INTERVAL);
+  },
+};
+ 
+/* ═══ normalizeItem ═══ */
+function normalizeItem(i) {
+  const tags=i.tags||[];
+  let type='Item';
+  if (tags.includes('Capsule')||(i.name||'').toLowerCase().includes('capsule')) type='Capsule';
+  else if ((i.name||'').toLowerCase().includes('weapon')||(i.name||'').toLowerCase().includes('ak-47')) type='Weapon';
+  else if ((i.name||'').toLowerCase().includes('case')) type='Case';
+  else if ((i.name||'').toLowerCase().includes('sticker')) type='Sticker';
+  const parts=(i.name||'').split('|');
+  const event=parts.length>2?parts[parts.length-1].trim():'—';
+  return {
+    id: i.id, name: i.name||'—', type, event,
+    price: i.onlyprice||0, tags,
+    scanned: i.lastScanned?new Date(i.lastScanned).toLocaleDateString('ru',{day:'numeric',month:'short'}):'—',
+    market_hash_name: i.market_hash_name||i.name,
+    current: i.current, analytics: i.analytics,
+  };
+}
+ 
+/* ═══ BOOT ═══ */
+window.addEventListener('DOMContentLoaded', () => App.init());
+</script>
+</body>
+ 
+</html>
